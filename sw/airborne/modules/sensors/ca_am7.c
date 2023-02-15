@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2022 OpenUAS
+ * Copyright (C) 2022 MAVLab
  *
  * This file is part of paparazzi
  *
