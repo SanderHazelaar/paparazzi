@@ -593,4 +593,21 @@
 #define RADIO_CONTROL_INTERMCU_ID 9
 #endif
 
+#ifndef AM7_DATA_OUT_ID
+#define AM7_DATA_OUT_ID 36
+#endif
+
+#ifndef AM7_DATA_IN_ID
+#define AM7_DATA_IN_ID 37
+#endif
+
+#ifndef SERIAL_ACT_T4_OUT_ID
+#define SERIAL_ACT_T4_OUT_ID 38
+#endif
+
+#ifndef SERIAL_ACT_T4_IN_ID
+#define SERIAL_ACT_T4_IN_ID 39
+#endif
+
+
 #endif /* ABI_SENDER_IDS_H */
