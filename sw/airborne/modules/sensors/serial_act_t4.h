@@ -73,19 +73,6 @@ struct __attribute__((__packed__)) serial_act_t4_in {
     //CHECKSUM
     uint8_t checksum_in;
 };
-    //ROLLING MSG IN 
-    // int16_t motor_1_voltage_int; //Battery voltage * 100
-    // int16_t motor_2_voltage_int; //Battery voltage * 100
-    // int16_t motor_3_voltage_int; //Battery voltage * 100
-    // int16_t motor_4_voltage_int; //Battery voltage * 100
-    // int16_t motor_1_current_int; //ESC current * 100
-    // int16_t motor_2_current_int; //ESC current * 100
-    // int16_t motor_3_current_int; //ESC current * 100
-    // int16_t motor_4_current_int; //ESC current * 100  
-    // int16_t motor_1_consumption_int; //ESC consumption in mAh
-    // int16_t motor_2_consumption_int; //ESC consumption in mAh
-    // int16_t motor_3_consumption_int; //ESC consumption in mAh
-    // int16_t motor_4_consumption_int; //ESC consumption in mAh
 
 struct __attribute__((__packed__)) serial_act_t4_out {
     //ESC cmd

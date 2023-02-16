@@ -74,6 +74,25 @@ struct PD_indi_over {
     struct FloatEulersPosition d;
 };
 
+struct ESC_status {
+    float ESC_1_rpm; 
+    float ESC_1_voltage; 
+    float ESC_1_current;
+    float ESC_1_consumption;  
+    float ESC_2_rpm; 
+    float ESC_2_voltage; 
+    float ESC_2_current;
+    float ESC_2_consumption;  
+    float ESC_3_rpm; 
+    float ESC_3_voltage; 
+    float ESC_3_current;
+    float ESC_3_consumption;    
+    float ESC_4_rpm; 
+    float ESC_4_voltage; 
+    float ESC_4_current;
+    float ESC_4_consumption;            
+};
+
 /* overactuated mixing structure */
 struct overactuated_mixing_t {
     int32_t commands[N_ACT_REAL];      ///< The output commands

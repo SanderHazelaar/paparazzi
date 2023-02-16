@@ -47,6 +47,8 @@
  */
 
 #define FBW_ACTUATORS
+#define MAX_DSHOT_VALUE 1999.0
+struct ESC_status myESC_status;
 
 //Array which contains all the actuator values (sent to motor and servos)
 struct overactuated_mixing_t overactuated_mixing;
@@ -440,19 +442,19 @@ void get_actuator_state_v2(void)
     actuator_state[3] = 2.0*M_PI*myserial_act_t4_in_local.motor_4_rpm_int/60.0;
 
     //Elevator angles: 
-    actuator_state[4] = myserial_act_t4_in_local.servo_1_angle_int/100.0; 
-    actuator_state[5] = myserial_act_t4_in_local.servo_2_angle_int/100.0; 
-    actuator_state[6] = myserial_act_t4_in_local.servo_3_angle_int/100.0; 
-    actuator_state[7] = myserial_act_t4_in_local.servo_4_angle_int/100.0; 
+    actuator_state[4] = (myserial_act_t4_in_local.servo_1_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE; 
+    actuator_state[5] = (myserial_act_t4_in_local.servo_2_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE; 
+    actuator_state[6] = (myserial_act_t4_in_local.servo_3_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE; 
+    actuator_state[7] = (myserial_act_t4_in_local.servo_4_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE; 
 
     //Azimuth angles: 
-    actuator_state[8] = myserial_act_t4_in_local.servo_5_angle_int/100.0; 
-    actuator_state[9] = myserial_act_t4_in_local.servo_6_angle_int/100.0; 
-    actuator_state[10] = myserial_act_t4_in_local.servo_7_angle_int/100.0; 
-    actuator_state[11] = myserial_act_t4_in_local.servo_8_angle_int/100.0; 
+    actuator_state[8] = (myserial_act_t4_in_local.servo_5_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE;  
+    actuator_state[9] = (myserial_act_t4_in_local.servo_6_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE;  
+    actuator_state[10] = (myserial_act_t4_in_local.servo_7_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE;  
+    actuator_state[11] = (myserial_act_t4_in_local.servo_8_angle_int/100.0) * M_PI/180.0 + OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE;   
 
     //Ailerons: 
-    actuator_state[14] = (myserial_act_t4_in_local.servo_9_angle_int - myserial_act_t4_in_local.servo_10_angle_int)/100.0; 
+    actuator_state[14] = (myserial_act_t4_in_local.servo_9_angle_int - myserial_act_t4_in_local.servo_10_angle_int)/100.0 * M_PI/180.0 ; 
 
     //Attitude angles: 
     actuator_state[12] = euler_vect[1]; //Theta
@@ -463,6 +465,27 @@ void get_actuator_state_v2(void)
         update_butterworth_2_low_pass(&actuator_state_filters[i], actuator_state[i]);
         actuator_state_filt[i] = actuator_state_filters[i].o[0];
     }
+
+    //Collect extra packet from extra_data_in rolling message: 
+    myESC_status.ESC_1_rpm = myserial_act_t4_in_local.motor_1_rpm_int; 
+    myESC_status.ESC_2_rpm = myserial_act_t4_in_local.motor_2_rpm_int; 
+    myESC_status.ESC_3_rpm = myserial_act_t4_in_local.motor_3_rpm_int; 
+    myESC_status.ESC_4_rpm = myserial_act_t4_in_local.motor_4_rpm_int; 
+    
+    myESC_status.ESC_1_voltage = serial_act_t4_extra_data_in_local[0];
+    myESC_status.ESC_2_voltage = serial_act_t4_extra_data_in_local[1];
+    myESC_status.ESC_3_voltage = serial_act_t4_extra_data_in_local[2];
+    myESC_status.ESC_4_voltage = serial_act_t4_extra_data_in_local[3];
+
+    myESC_status.ESC_1_current = serial_act_t4_extra_data_in_local[4];
+    myESC_status.ESC_2_current = serial_act_t4_extra_data_in_local[5];
+    myESC_status.ESC_3_current = serial_act_t4_extra_data_in_local[6];
+    myESC_status.ESC_4_current = serial_act_t4_extra_data_in_local[7];
+
+    myESC_status.ESC_1_consumption = serial_act_t4_extra_data_in_local[8];
+    myESC_status.ESC_2_consumption = serial_act_t4_extra_data_in_local[9];
+    myESC_status.ESC_3_consumption = serial_act_t4_extra_data_in_local[10];
+    myESC_status.ESC_4_consumption = serial_act_t4_extra_data_in_local[11];
 
     #endif
 
@@ -750,7 +773,6 @@ void overactuated_mixing_run(void)
         //Submit value to external servo: 
         am7_data_out_local.pwm_servo_1_int = (int16_t) (servo_right_cmd);
         am7_data_out_local.pwm_servo_2_int = (int16_t) (servo_left_cmd);
-
     }
 
     /// Case of INDI control mode with external nonlinear function:
@@ -1010,8 +1032,6 @@ void overactuated_mixing_run(void)
         INDI_pseudocontrol[1] = acc_setpoint[1] - accel_vect_filt_control_rf[1];
         INDI_pseudocontrol[2] = acc_setpoint[2] - accel_vect_filt_control_rf[2];
 
-        //Collect teletry available from Teensy 4.0: 
-
 
         //Compute and transmit the messages to the AM7 module:
         am7_data_out_local.motor_1_state_int = (int16_t) (actuator_state_filt[0] * 1e1);
@@ -1149,7 +1169,7 @@ void overactuated_mixing_run(void)
         indi_u[14] =  (myam7_data_in_local.ailerons_cmd_int * 1e-2 * M_PI/180);
 
         // Write values to servos and motor
-        if(RadioControlValues(RADIO_TH_HOLD) > - 4500) {
+        if(RadioControlValues(RADIO_TH_HOLD) > 0) {
             //Motors:
             overactuated_mixing.commands[0] = (int32_t)(indi_u[0] * K_ppz_rads_motor);
             overactuated_mixing.commands[1] = (int32_t)(indi_u[1] * K_ppz_rads_motor);
@@ -1214,38 +1234,12 @@ void overactuated_mixing_run(void)
 
         roll_cmd = servo_right_cmd;
         pitch_cmd = servo_left_cmd;
+
     }
 
 
-    //Collect the last available data on the AM7 bus to be communicated to the servos.
+    //Send to the raspberry pi the values for the next optimization run.
     AbiSendMsgAM7_DATA_OUT(ABI_AM7_DATA_OUT_ID, &am7_data_out_local, extra_data_out_local);
-
-    
-    //Send the computed actuator values to the FBW T4: 
-    #ifdef FBW_ACTUATORS
-        if(RadioControlValues(RADIO_TH_HOLD) > 0) {
-            float K_dshot_rads = 1.0;
-            //Arm motor:
-            myserial_act_t4_out_local.motor_arm_int = 1;
-            //Motors cmds:
-            myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (indi_u[0] * 100.0 * K_dshot_rads); 
-            myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (indi_u[1] * 100.0 * K_dshot_rads); 
-            myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (indi_u[2] * 100.0 * K_dshot_rads); 
-            myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (indi_u[3] * 100.0 * K_dshot_rads); 
-            //Elevator servos: 
-
-
-            serial_act_t4_extra_data_in_local[100] = 100;
-        }
-        else{
-            myserial_act_t4_out_local.motor_arm_int = 0;
-        }
-
-        // myserial_act_t4_out_local.motor_1_dshot_cmd_int myam7_data_in_local.motor_1_cmd_int
-
-        AbiSendMsgSERIAL_ACT_T4_OUT(ABI_SERIAL_ACT_T4_OUT_ID, &myserial_act_t4_out_local, serial_act_t4_extra_data_in_local);
-
-    #endif
 
     //Bound values:
     Bound(overactuated_mixing.commands[0], 0, MAX_PPRZ);
@@ -1263,6 +1257,52 @@ void overactuated_mixing_run(void)
     BoundAbs(overactuated_mixing.commands[10], MAX_PPRZ);
     BoundAbs(overactuated_mixing.commands[11], MAX_PPRZ);
 
+
+    #ifdef FBW_ACTUATORS
+        //Pre compute the actuator values to be sent to the FBW T4: 
+        float K_ratio_el = 1.0;
+        float K_ratio_az = 1.0;
+        float K_ratio_aileron = 1.0;
+        //Motor cmds
+        if(RadioControlValues(RADIO_TH_HOLD) > 0) {
+            //Arm motor:
+            myserial_act_t4_out_local.motor_arm_int = 1;
+            //Motors cmds:
+            myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[0] * MAX_DSHOT_VALUE / 9600.0); 
+            myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[1] * MAX_DSHOT_VALUE / 9600.0); 
+            myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[2] * MAX_DSHOT_VALUE / 9600.0); 
+            myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[3] * MAX_DSHOT_VALUE / 9600.0);      
+        }
+        else{
+            //Disarm motor:
+            myserial_act_t4_out_local.motor_arm_int = 0;
+            //Motors cmds:
+            myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (0); 
+            myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (0); 
+            myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (0); 
+            myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (0); 
+
+        }
+        //Elevator servos cmd: 
+        myserial_act_t4_out_local.servo_1_cmd_int = (int16_t) ( ( overactuated_mixing.commands[4] / K_ppz_angle_el ) * 100 * K_ratio_el * 180/M_PI );
+        myserial_act_t4_out_local.servo_2_cmd_int = (int16_t) ( ( overactuated_mixing.commands[5] / K_ppz_angle_el ) * 100 * K_ratio_el * 180/M_PI );
+        myserial_act_t4_out_local.servo_3_cmd_int = (int16_t) ( ( overactuated_mixing.commands[6] / K_ppz_angle_el ) * 100 * K_ratio_el * 180/M_PI );
+        myserial_act_t4_out_local.servo_4_cmd_int = (int16_t) ( ( overactuated_mixing.commands[7] / K_ppz_angle_el ) * 100 * K_ratio_el * 180/M_PI );
+        //Azimuth servos cmd: 
+        myserial_act_t4_out_local.servo_5_cmd_int = (int16_t) ( ( overactuated_mixing.commands[8] / K_ppz_angle_az ) * 100 * K_ratio_az * 180/M_PI );
+        myserial_act_t4_out_local.servo_6_cmd_int = (int16_t) ( ( overactuated_mixing.commands[9] / K_ppz_angle_az ) * 100 * K_ratio_az * 180/M_PI );
+        myserial_act_t4_out_local.servo_7_cmd_int = (int16_t) ( ( overactuated_mixing.commands[10] / K_ppz_angle_az ) * 100 * K_ratio_az * 180/M_PI );
+        myserial_act_t4_out_local.servo_8_cmd_int = (int16_t) ( ( overactuated_mixing.commands[11] / K_ppz_angle_az ) * 100 * K_ratio_az * 180/M_PI );
+        //Aileron servos cmd: 
+        myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (indi_u[14] * 100.0 * K_ratio_aileron * 180.0/M_PI );
+        myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (indi_u[14] * 100.0 * K_ratio_aileron * 180.0/M_PI );
+
+        //SEND MESSAGE:
+        // serial_act_t4_extra_data_out_local[1] = 1; //Assign extra data out;
+        AbiSendMsgSERIAL_ACT_T4_OUT(ABI_SERIAL_ACT_T4_OUT_ID, &myserial_act_t4_out_local, &serial_act_t4_extra_data_out_local[0]);
+
+    #endif
+
     actuator_output[0] = (int32_t) (overactuated_mixing.commands[0] / K_ppz_rads_motor);
     actuator_output[1] = (int32_t) (overactuated_mixing.commands[1] / K_ppz_rads_motor);
     actuator_output[2] = (int32_t) (overactuated_mixing.commands[2] / K_ppz_rads_motor);
@@ -1278,9 +1318,7 @@ void overactuated_mixing_run(void)
     actuator_output[10] = (int32_t) ((overactuated_mixing.commands[10] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE) * 180/M_PI);
     actuator_output[11] = (int32_t) ((overactuated_mixing.commands[11] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE) * 180/M_PI);
 
-    //Ailerons
-    actuator_output[12] = (int32_t) (indi_u[14] * 180/M_PI);
-
+    //Actuator state message:
     actuator_state_int[0] = (int32_t) (actuator_state[0]);
     actuator_state_int[1] = (int32_t) (actuator_state[1]);
     actuator_state_int[2] = (int32_t) (actuator_state[2]);
