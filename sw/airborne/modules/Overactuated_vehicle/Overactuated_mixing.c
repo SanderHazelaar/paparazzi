@@ -35,6 +35,7 @@
 #include "math/pprz_algebra_float.h"
 #include "math/pprz_matrix_decomp_float.c"
 #include "modules/sensors/ca_am7.h"
+#include "modules/sensors/serial_act_t4.h"
 #include "modules/core/abi.h"
 #include "mcu_periph/sys_time.h"
 #include "modules/sensors/aoa_pwm.h"
@@ -44,6 +45,8 @@
 /**
  * Variables declaration
  */
+
+#define FBW_ACTUATORS
 
 //Array which contains all the actuator values (sent to motor and servos)
 struct overactuated_mixing_t overactuated_mixing;
@@ -142,10 +145,18 @@ float INDI_pseudocontrol[INDI_INPUTS];
 //AM7 variables:
 float manual_motor_value = 0, manual_el_value = 0, manual_az_value = 0, manual_phi_value = 0, manual_theta_value = 0, manual_ailerons_value = 0;
 struct am7_data_out am7_data_out_local;
-float extra_data_out_local[255];
+float extra_data_out_local[255] __attribute__((aligned));
 static abi_event AM7_in;
-float extra_data_in_local[255];
+float extra_data_in_local[255] __attribute__((aligned));
 struct am7_data_in myam7_data_in_local;
+
+// serial_act_t4 variables:
+struct serial_act_t4_out myserial_act_t4_out_local;
+float serial_act_t4_extra_data_out_local[255] __attribute__((aligned));
+static abi_event SERIAL_ACT_T4_IN;
+float serial_act_t4_extra_data_in_local[255] __attribute__((aligned));
+struct serial_act_t4_in myserial_act_t4_in_local;
+
 
 //Variables needed for the filters:
 Butterworth2LowPass measurement_rates_filters[3]; //Filter of pqr
@@ -219,6 +230,12 @@ static void data_AM7_abi_in(uint8_t sender_id __attribute__((unused)), struct am
     memcpy(&myam7_data_in_local,myam7_data_in_ptr,sizeof(struct am7_data_in));
     memcpy(&extra_data_in_local,extra_data_in_ptr,255 * sizeof(float));
 }
+
+static void serial_act_t4_abi_in(uint8_t sender_id __attribute__((unused)), struct serial_act_t4_in * myserial_act_t4_in_ptr, float * serial_act_t4_extra_data_in_ptr){
+    memcpy(&myserial_act_t4_in_local,myserial_act_t4_in_ptr,sizeof(struct serial_act_t4_in));
+    memcpy(&serial_act_t4_extra_data_in_local,serial_act_t4_extra_data_in_ptr,255 * sizeof(float));
+}
+
 
 /**
  * Function for the message NONLINEAR_CA_DEBUG
@@ -352,9 +369,9 @@ void from_earth_to_control(float * out_array, float * in_array, float Psi){
  */
 void get_actuator_state_v2(void)
 {
+    #ifndef FBW_ACTUATORS
     //actuator dynamics
-    for (int i = 0; i < INDI_NUM_ACT; i++) {
-
+    for (int i = 0; i < INDI_NUM_ACT; i++) {        
         //Motors
         if(i < 4){
             actuator_state[i] = - OVERACTUATED_MIXING_INDI_MOTOR_FIRST_ORD_DEN_2 * actuator_state_old[i] +
@@ -391,15 +408,14 @@ void get_actuator_state_v2(void)
             // Bound for max and minimum physical values:
             Bound(actuator_state[i],OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE,OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE);
         }
-
-        //Attitude angles: 
-        actuator_state[12] = euler_vect[1]; //Theta
-        actuator_state[13] = euler_vect[0]; //Phi        
-
-        //Aileron state: 
+        //Ailerons: 
         actuator_state[14] = - OVERACTUATED_MIXING_INDI_AILERONS_FIRST_ORD_DEN_2 * actuator_state_old[14] +
                     OVERACTUATED_MIXING_INDI_AILERONS_FIRST_ORD_NUM_2 * indi_u_memory[14][actuator_mem_buf_size - delay_ts_ailerons - 1];
         Bound(actuator_state[14],OVERACTUATED_MIXING_MIN_DELTA_AILERONS,OVERACTUATED_MIXING_MAX_DELTA_AILERONS);
+        
+        //Attitude angles: 
+        actuator_state[12] = euler_vect[1]; //Theta
+        actuator_state[13] = euler_vect[0]; //Phi        
 
         //Propagate the actuator values into the filters and calculate the derivative
         update_butterworth_2_low_pass(&actuator_state_filters[i], actuator_state[i]);
@@ -415,6 +431,41 @@ void get_actuator_state_v2(void)
         indi_u_memory[i][actuator_mem_buf_size-1] = indi_u[i];
 
     }
+    #else //Case of FWB through Teensy 4.0
+
+    //Motors:
+    actuator_state[0] = 2.0*M_PI*myserial_act_t4_in_local.motor_1_rpm_int/60.0;
+    actuator_state[1] = 2.0*M_PI*myserial_act_t4_in_local.motor_2_rpm_int/60.0;
+    actuator_state[2] = 2.0*M_PI*myserial_act_t4_in_local.motor_3_rpm_int/60.0;
+    actuator_state[3] = 2.0*M_PI*myserial_act_t4_in_local.motor_4_rpm_int/60.0;
+
+    //Elevator angles: 
+    actuator_state[4] = myserial_act_t4_in_local.servo_1_angle_int/100.0; 
+    actuator_state[5] = myserial_act_t4_in_local.servo_2_angle_int/100.0; 
+    actuator_state[6] = myserial_act_t4_in_local.servo_3_angle_int/100.0; 
+    actuator_state[7] = myserial_act_t4_in_local.servo_4_angle_int/100.0; 
+
+    //Azimuth angles: 
+    actuator_state[8] = myserial_act_t4_in_local.servo_5_angle_int/100.0; 
+    actuator_state[9] = myserial_act_t4_in_local.servo_6_angle_int/100.0; 
+    actuator_state[10] = myserial_act_t4_in_local.servo_7_angle_int/100.0; 
+    actuator_state[11] = myserial_act_t4_in_local.servo_8_angle_int/100.0; 
+
+    //Ailerons: 
+    actuator_state[14] = (myserial_act_t4_in_local.servo_9_angle_int - myserial_act_t4_in_local.servo_10_angle_int)/100.0; 
+
+    //Attitude angles: 
+    actuator_state[12] = euler_vect[1]; //Theta
+    actuator_state[13] = euler_vect[0]; //Phi   
+
+    //Filter the actuator states: 
+    for (int i = 0; i < INDI_NUM_ACT; i++) {  
+        update_butterworth_2_low_pass(&actuator_state_filters[i], actuator_state[i]);
+        actuator_state_filt[i] = actuator_state_filters[i].o[0];
+    }
+
+    #endif
+
 }
 
 /**
@@ -432,6 +483,7 @@ void overactuated_mixing_init(void) {
     //Init abi bind msg:
     AbiBindMsgAM7_DATA_IN(ABI_BROADCAST, &AM7_in, data_AM7_abi_in);
 
+    AbiBindMsgSERIAL_ACT_T4_IN(ABI_BROADCAST, &SERIAL_ACT_T4_IN, serial_act_t4_abi_in);
 }
 
 /**
@@ -958,6 +1010,9 @@ void overactuated_mixing_run(void)
         INDI_pseudocontrol[1] = acc_setpoint[1] - accel_vect_filt_control_rf[1];
         INDI_pseudocontrol[2] = acc_setpoint[2] - accel_vect_filt_control_rf[2];
 
+        //Collect teletry available from Teensy 4.0: 
+
+
         //Compute and transmit the messages to the AM7 module:
         am7_data_out_local.motor_1_state_int = (int16_t) (actuator_state_filt[0] * 1e1);
         am7_data_out_local.motor_2_state_int = (int16_t) (actuator_state_filt[1] * 1e1);
@@ -1164,6 +1219,33 @@ void overactuated_mixing_run(void)
 
     //Collect the last available data on the AM7 bus to be communicated to the servos.
     AbiSendMsgAM7_DATA_OUT(ABI_AM7_DATA_OUT_ID, &am7_data_out_local, extra_data_out_local);
+
+    
+    //Send the computed actuator values to the FBW T4: 
+    #ifdef FBW_ACTUATORS
+        if(RadioControlValues(RADIO_TH_HOLD) > 0) {
+            float K_dshot_rads = 1.0;
+            //Arm motor:
+            myserial_act_t4_out_local.motor_arm_int = 1;
+            //Motors cmds:
+            myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (indi_u[0] * 100.0 * K_dshot_rads); 
+            myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (indi_u[1] * 100.0 * K_dshot_rads); 
+            myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (indi_u[2] * 100.0 * K_dshot_rads); 
+            myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (indi_u[3] * 100.0 * K_dshot_rads); 
+            //Elevator servos: 
+
+
+            serial_act_t4_extra_data_in_local[100] = 100;
+        }
+        else{
+            myserial_act_t4_out_local.motor_arm_int = 0;
+        }
+
+        // myserial_act_t4_out_local.motor_1_dshot_cmd_int myam7_data_in_local.motor_1_cmd_int
+
+        AbiSendMsgSERIAL_ACT_T4_OUT(ABI_SERIAL_ACT_T4_OUT_ID, &myserial_act_t4_out_local, serial_act_t4_extra_data_in_local);
+
+    #endif
 
     //Bound values:
     Bound(overactuated_mixing.commands[0], 0, MAX_PPRZ);

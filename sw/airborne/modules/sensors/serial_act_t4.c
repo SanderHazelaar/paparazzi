@@ -34,17 +34,17 @@
 static abi_event SERIAL_ACT_T4_OUT;
 uint8_t serial_act_t4_out_msg_id;
 struct serial_act_t4_out myserial_act_t4_out;
-float serial_act_t4_extra_data_out[255];
+float serial_act_t4_extra_data_out[255]__attribute__((aligned));
 
 //Variables for inbound packet
 struct serial_act_t4_in myserial_act_t4_in;
-float serial_act_t4_extra_data_in[255];
+float serial_act_t4_extra_data_in[255]__attribute__((aligned));
 uint16_t serial_act_t4_buf_in_cnt = 0;
 uint32_t serial_act_t4_missed_packets_in = 0;
 uint32_t serial_act_t4_received_packets = 0;
 uint16_t serial_act_t4_message_frequency_in = 0;
 float serial_act_t4_last_ts = 0;
-static uint8_t serial_act_t4_msg_buf_in[sizeof(struct serial_act_t4_in)*2]  __attribute__((aligned));   ///< The message buffer for the device chosen to be 2* message_size total
+static uint8_t serial_act_t4_msg_buf_in[sizeof(struct serial_act_t4_in)*2]__attribute__((aligned));   ///< The message buffer for the device chosen to be 2* message_size total
 
 
 #if PERIODIC_TELEMETRY
@@ -91,7 +91,7 @@ static uint8_t serial_act_t4_msg_buf_in[sizeof(struct serial_act_t4_in)*2]  __at
         pprz_msg_send_SERIAL_ACT_T4_IN(trans, dev, AC_ID, 
                 &motor_1_rpm_int_telemetry, &motor_2_rpm_int_telemetry, &motor_3_rpm_int_telemetry, &motor_4_rpm_int_telemetry,
                 &servo_1_angle_int_telemetry, &servo_2_angle_int_telemetry, &servo_3_angle_int_telemetry, &servo_4_angle_int_telemetry,
-                &servo_5_angle_int_telemetry, &servo_6_angle_int_telemetry, &servo_7_angle_int_telemetry, &servo_8_angle_int_telemetry
+                &servo_5_angle_int_telemetry, &servo_6_angle_int_telemetry, &servo_7_angle_int_telemetry, &servo_8_angle_int_telemetry,
                 &servo_9_angle_int_telemetry, &servo_10_angle_int_telemetry, 
                 &serial_act_t4_missed_packets_in, &serial_act_t4_message_frequency_in,
                 &rolling_msg_in_telemetry, &rolling_msg_in_id_telemetry,

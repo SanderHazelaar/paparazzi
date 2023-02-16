@@ -79,7 +79,11 @@
       </module>
 
 <!--      Module needed for the communication between the raspberry pi and the pixhawk-->
-      <module name="ca_am7"/>
+      <!-- <module name="ca_am7"/> -->
+
+<!--      Module needed for the fly by wire communication between the Teensy T4 and the pixhawk-->
+      <module name="serial_act_t4"/>
+
 
 <!--      <module name="scheduling_indi_simple"/>-->
 

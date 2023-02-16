@@ -36,7 +36,7 @@
 #include "pprzlink/pprz_transport.h"
 
 
-struct __attribute__((__packed__)) serial_act_t4_data_in {
+struct __attribute__((__packed__)) serial_act_t4_in {
     //ESC telemetry & error code
 	int16_t motor_1_rpm_int; //RPM
 	int16_t motor_2_rpm_int; //RPM
@@ -87,8 +87,7 @@ struct __attribute__((__packed__)) serial_act_t4_data_in {
     // int16_t motor_3_consumption_int; //ESC consumption in mAh
     // int16_t motor_4_consumption_int; //ESC consumption in mAh
 
-
-struct __attribute__((__packed__)) serial_act_t4_data_out {
+struct __attribute__((__packed__)) serial_act_t4_out {
     //ESC cmd
     int8_t motor_arm_int; //Arm motor boolean
     int16_t motor_1_dshot_cmd_int; //Motor cmd 0 - 1999
