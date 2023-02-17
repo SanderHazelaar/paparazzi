@@ -1282,6 +1282,7 @@ void overactuated_mixing_run(void)
             myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (0); 
             myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (0); 
 
+            myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (600); 
         }
         //Elevator servos cmd: 
         myserial_act_t4_out_local.servo_1_cmd_int = (int16_t) ( ( overactuated_mixing.commands[4] / K_ppz_angle_el ) * 100 * K_ratio_el * 180/M_PI );

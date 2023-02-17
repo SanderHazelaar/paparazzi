@@ -1,7 +1,7 @@
 <!DOCTYPE module SYSTEM "module.dtd">
 <module name="serial_act_t4" dir="sensors">
   <doc>
-    <description>Transfers data from RaspberryPi to Pixhawk and vice versa</description>
+    <description>Transfers data from Teensy 4.0 to Pixhawk and vice versa</description>
   </doc>
   <header>
     <file name="serial_act_t4.h"/>
@@ -11,7 +11,7 @@
   <makefile>
 <!--       Configure default UART port and baudrate-->
     <configure name="SERIAL_ACT_T4_PORT" default="UART4" case="upper|lower"/>
-    <configure name="SERIAL_ACT_T4_BAUD" default="B460800"/>
+    <configure name="SERIAL_ACT_T4_BAUD" default="B921600"/>
     <!-- Enable UART and set baudrate -->
     <define name="USE_$(SERIAL_ACT_T4_PORT_UPPER)"/>
     <define name="USE_$(SERIAL_ACT_T4_PORT_UPPER)_TX" value="TRUE"/>
