@@ -110,7 +110,7 @@ else
   CH_OPT ?= 2 -ggdb
 endif
   USE_OPT = -O$(CH_OPT) \
-	-falign-functions=16 -fomit-frame-pointer \
+	-falign-functions=16 -flto -fomit-frame-pointer \
 	-W -Wall \
 	$(PPRZ_DEFINITION)
 endif

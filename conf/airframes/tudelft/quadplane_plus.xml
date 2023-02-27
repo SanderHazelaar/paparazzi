@@ -21,7 +21,7 @@
 
       <module name="radio_control" type="sbus"> <!-- The output type of RX, over the air it can be all kinds e.g. DSMX, FRSky-->
         <define name="RADIO_CONTROL_NB_CHANNEL" value="16"/>  <!-- Set the OpenRXSR receiver to maximum channel output of 8 9ms -->
-        <configure name="SBUS_PORT" value="UART3"/>  <!--Default use UART2  on FMU4 -->
+        <configure name="SBUS_PORT" value="UART7"/>  <!--Default use UART2  on FMU4 -->
         <!-- Mode set one a three way switch -->
         <!--  Per default already GEAR if not defined  <define name="RADIO_MODE" value="RADIO_GEAR"/> --><!-- yes, already done by default if not redefined to something else-->
         <define name="RADIO_AUX1" value="5"/>
@@ -72,14 +72,9 @@
 	<configure name="SSA_PWM_CHANNEL" value="PWM_INPUT1" /><!-- the PPM RC INput used for PWM in -->
       </module>
 
-      <module name="adc_generic">
-<!--	<define name="USE_ADC_6" value="TRUE"/>-->
-        <configure name="ADC_CHANNEL_GENERIC1" value="ADC_5"/>
-        <configure name="ADC_CHANNEL_GENERIC2" value="ADC_6"/>
-      </module>
 
 <!--      Module needed for the communication between the raspberry pi and the pixhawk-->
-      <!-- <module name="ca_am7"/> -->
+      <module name="ca_am7"/>
 
 <!--      Module needed for the fly by wire communication between the Teensy T4 and the pixhawk-->
       <module name="serial_act_t4"/>
@@ -101,7 +96,7 @@
         <define name="CALC_AMSL_BARO" value="TRUE"/>
       </module>
 
-      <module name="geo_mag"/>
+      <!-- <module name="geo_mag"/> -->
 
       <define name="ADC_CURRENT_DISABLE" value="TRUE"/>
 
@@ -173,7 +168,7 @@
 
     <!-- <module name="air_data"/> -->
 
-    <module name="sys_mon"/>
+    <!-- <module name="sys_mon"/> -->
     <module name="actuators" type="pwm">
       <define name="SERVO_HZ" value="400"/>
     </module>
@@ -521,6 +516,7 @@
   <section name="MISC">
     <define name="VoltageOfAdc(adc)" value="((3.3f/4096.0f) * 11 * adc)"/><!-- TODO: verify/calibrate -->
     <define name="NO_RC_THRUST_LIMIT" value="TRUE"/>
+    <!--define name="UART7_CR2" value="(USART_CR2_STOP1_BITS | USART_CR2_SWAP_Msk)"/--> <!-- Swap RX/TX since RX doesn't work-->
 
     <!-- Basic navigation settings -->
     <define name="NAV_CLIMB_VSPEED" value="3.5"/>

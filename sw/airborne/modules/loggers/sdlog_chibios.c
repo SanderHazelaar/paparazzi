@@ -62,7 +62,7 @@
 #endif
 
 #define DefaultAdcOfVoltage(voltage) ((uint32_t) (voltage/(DefaultVoltageOfAdc(1))))
-static const uint16_t V_ALERT = DefaultAdcOfVoltage(5.5f);
+static const uint16_t V_ALERT = DefaultAdcOfVoltage(0.0f);
 static const char PPRZ_LOG_NAME[] = "pprzlog_";
 static const char PPRZ_LOG_DIR[] = "PPRZ";
 
