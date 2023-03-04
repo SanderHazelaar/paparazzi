@@ -1,16 +1,15 @@
 <!DOCTYPE airframe SYSTEM "../airframe.dtd">
-
-<!-- This is an overactuated quadplane
-     * Airframe:    TUD00289
-     * Autopilot:   Pixhawk 4
-     * Actuators:   4x BLHELI32 ESC (PWM) + 8x SAVOX servos (PWM)
-     * Datalink:    Herelink/Xbee
-     * GPS:         UBlox F9P
-     * RC:          SBUS Crossfire
--->
-
 <airframe name="quadplane_plus">
-  <description>Overactuated vehicle</description>
+  <description>
+   This is an overactuated quadplane
+     + Airframe:    TUD00289
+     + Autopilot:   Pixhawk 4
+     + Actuators:   4x BLHELI32 ESC (PWM) + 8x Serial servos 2x PWM Servos Savox
+                    All ESC/Actuators connected to a T4 board
+     + Datalink:    Herelink/Xbee
+     + GPS:         UBlox F9P
+     + RC:          SBUS Crossfire
+  </description>
 
   <firmware name="rotorcraft">
     <target name="ap" board="px4fmu_5.0_chibios">
@@ -79,7 +78,6 @@
 <!--      Module needed for the fly by wire communication between the Teensy T4 and the pixhawk-->
       <module name="serial_act_t4"/>
 
-
 <!--      <module name="scheduling_indi_simple"/>-->
 
       <!-- Logger -->
@@ -137,34 +135,34 @@
     <module name="imu"           type="mpu6000"/>
 
     <!--     For OUTSIDE -->
-    <module name="gps" type="ublox">
+    <!-- <module name="gps" type="ublox">
       <configure name="GPS_BAUD" value="B460800"/> 
-    </module>
+    </module> -->
 
     <!--     For OPTITRACK -->
-   <!-- <module name="gps"           type="datalink"> -->
-   <!-- </module> -->
+   <module name="gps"           type="datalink">
+   </module>
 
 
     <module name="stabilization" type="indi_simple"/>
     <module name="stabilization" type="rate_indi"/>
 
-    <!-- <module name="ins"           type="extended" /> -->
+    <module name="ins"           type="extended" />
 
 
-   <module name="ins" type="ekf2">
-    <define name="INS_EKF2_MAG_ID" value="MAG_IST8310_SENDER_ID"/>
+   <!-- <module name="ins" type="ekf2"> -->
+    <!-- <define name="INS_EKF2_MAG_ID" value="MAG_IST8310_SENDER_ID"/> -->
     <!-- <define name="INS_EKF2_MAG_ID" value="MAG_RM3100_SENDER_ID"/> -->
     <!-- <define name="INS_EKF2_MAG_ID" value="MAG_LIS3MDL_SENDER_ID"/> -->
     <!-- <define name="INS_EKF2_OPTITRACK" value="TRUE"/> -->
-   </module>
+   <!-- </module> -->
 
-    <!-- <module name="ahrs"          type="float_cmpl_quat"> -->
-     <!-- <configure name="USE_MAGNETOMETER" value="TRUE"/> -->
-     <!-- <define name="AHRS_USE_GPS_HEADING" value="FALSE"/> -->
-     <!-- <define name="AHRS_BIAS_UPDATE_HEADING_THRESHOLD" value="0.174533" unit="rad"/> -->
-     <!-- <define name="AHRS_FC_MAG_ID" value="MAG_RM3100_SENDER_ID" /> -->
-    <!-- </module> -->
+    <module name="ahrs"          type="float_cmpl_quat">
+     <configure name="USE_MAGNETOMETER" value="TRUE"/>
+     <define name="AHRS_USE_GPS_HEADING" value="FALSE"/>
+     <define name="AHRS_BIAS_UPDATE_HEADING_THRESHOLD" value="0.174533" unit="rad"/>
+     <define name="AHRS_FC_MAG_ID" value="MAG_RM3100_SENDER_ID" />
+    </module>
 
     <!-- <module name="air_data"/> -->
 
@@ -198,17 +196,17 @@
    </module> -->
 
   <!-- updated with new orientation 17-10-2022 -->
-  <!-- <module name="mag" type="rm3100">
+  <module name="mag" type="rm3100">
     <configure name="MAG_RM3100_I2C_DEV" value="i2c4"/>
     <define name="RM3100_CHAN_X_SIGN" value="+"/>
     <define name="RM3100_CHAN_Y_SIGN" value="+"/>
     <define name="RM3100_CHAN_Z_SIGN" value="+"/>
-    <define name="RM3100_CHAN_X" value="1"/>
-    <define name="RM3100_CHAN_Y" value="2"/>
-    <define name="RM3100_CHAN_Z" value="0"/>
+    <define name="RM3100_CHAN_X" value="0"/>
+    <define name="RM3100_CHAN_Y" value="1"/>
+    <define name="RM3100_CHAN_Z" value="2"/>
     <define name="MODULE_RM3100_SYNC_SEND" value="FALSE"/>
     <define name="MODULE_RM3100_UPDATE_AHRS" value="TRUE"/>
-  </module> -->
+  </module>
 
   <module name="Overactuated_mixing"/>
   </firmware>
@@ -285,6 +283,30 @@
     <define name="MAX_VERT_ACC" value="5.0" unit="m/s^2"/>
   </section>
 
+  <section name="FBW_EXTRA_DATA_OUT" prefix="FBW_T4_">
+    <!-- (N_teeth_gear_servo/N_teeth_gear_tube) -->
+    <define name="K_RATIO_GEAR_AZ" value="1.07692307692"/>
+    <define name="K_RATIO_GEAR_EL" value="1.0"/>
+
+    <define name="AILERONS_FIRST_ORD_NUM" value="0.0198" />
+    <define name="AILERONS_FIRST_ORD_DEN" value="-0.9802" />
+
+    <define name="SERVO_9_MIN_PWM" value="1200" />   
+    <define name="SERVO_9_MAX_PWM" value="1800" />   
+    <define name="SERVO_9_NEUTRAL_PWM" value="1500" /> 
+    <define name="SERVO_9_MIN_ANGLE_DEG" value="-25" /> 
+    <define name="SERVO_9_MAX_ANGLE_DEG" value="25" /> 
+    <define name="SERVO_9_DELAY_TS" value="7" /> 
+
+    <define name="SERVO_10_MIN_PWM" value="1200" />   
+    <define name="SERVO_10_MAX_PWM" value="1800" />   
+    <define name="SERVO_10_NEUTRAL_PWM" value="1500" /> 
+    <define name="SERVO_10_MIN_ANGLE_DEG" value="-25" /> 
+    <define name="SERVO_10_MAX_ANGLE_DEG" value="25" /> 
+    <define name="SERVO_10_DELAY_TS" value="7" /> 
+
+  </section>
+
   <section name="OVERACTUATED_VARIABLES" prefix="OVERACTUATED_MIXING_">
 
     <!-- PID gains wrt the SI units -->
@@ -296,9 +318,13 @@
     <define name="PID_I_GAIN_THETA" value="20"/>
     <define name="PID_D_GAIN_THETA" value="79"/>
 
-    <define name="PID_P_GAIN_PSI_AZ" value="1.5"/>
+    <!-- <define name="PID_P_GAIN_PSI_AZ" value="1.5"/>
     <define name="PID_I_GAIN_PSI_AZ" value="0.5"/>
-    <define name="PID_D_GAIN_PSI_AZ" value="0.5"/>
+    <define name="PID_D_GAIN_PSI_AZ" value="0.5"/> -->
+
+    <define name="PID_P_GAIN_PSI_AZ" value="0.83"/>
+    <define name="PID_I_GAIN_PSI_AZ" value="0.34"/>
+    <define name="PID_D_GAIN_PSI_AZ" value="0.23"/>
 
     <define name="PID_P_GAIN_POS_X_TILT" value="1.4"/>
     <define name="PID_I_GAIN_POS_X_TILT" value="0.01"/>
@@ -402,12 +428,19 @@
     <!-- CF PROP with 4s battery-->
     <!-- <define name="MOTOR_K_T_OMEGASQ_P1" value="0.133851e-5" />
     <define name="MOTOR_K_T_OMEGASQ_P2" value="-1.125262e-5" /> -->
+
     <define name="MOTOR_K_T_OMEGASQ_P1" value="0" />
     <define name="MOTOR_K_T_OMEGASQ_P2" value="0.545e-5" unit="N/(rad/s)^2"/>
-
     <define name="MOTOR_K_M_OMEGASQ" value="0.936722e-7" unit="N*m/(rad/s)^2"/>
     <define name="MOTOR_K_PWM_OMEGA" value="1.4" unit="(rad/s)/PWM"/>
     <define name="MOTOR_MAX_OMEGA" value="1400" unit="rad/s"/>
+
+    <!-- 10x5 CF prop -->
+    <!-- <define name="MOTOR_K_T_OMEGASQ_P1" value="0" />
+    <define name="MOTOR_K_T_OMEGASQ_P2" value="0.855864e-5" unit="N/(rad/s)^2"/>
+    <define name="MOTOR_K_M_OMEGASQ" value="1.347822e-7" unit="N*m/(rad/s)^2"/>
+    <define name="MOTOR_MAX_OMEGA" value="1100" unit="rad/s"/>
+    <define name="MOTOR_K_PWM_OMEGA" value="1" unit="(rad/s)/PWM"/> -->
 
     <!-- SLOW PROP-->
    <!-- <define name="MOTOR_K_T_OMEGASQ" value="0.882e-5" unit="N/(rad/s)^2"/>
@@ -419,18 +452,18 @@
     <define name="SERVO_AZ_MIN_ANGLE" value="-45" unit="deg"/><!-- Always remember to update the PWM range as well-->
     <define name="SERVO_AZ_MAX_ANGLE" value="45" unit="deg"/>
 
-    <define name="SERVO_EL_MAX_ANGLE" value="25" unit="deg"/>
+    <define name="SERVO_EL_MAX_ANGLE" value="22" unit="deg"/>
     <define name="SERVO_EL_MIN_ANGLE" value="-130" unit="deg"/>
 
-    <define name="SERVO_EL_1_ZERO_VALUE" value="-51" unit="deg"/>
-    <define name="SERVO_EL_2_ZERO_VALUE" value="-55" unit="deg"/>
-    <define name="SERVO_EL_3_ZERO_VALUE" value="-49" unit="deg"/>
-    <define name="SERVO_EL_4_ZERO_VALUE" value="-51" unit="deg"/>
+    <define name="SERVO_EL_1_ZERO_VALUE" value="-1.14" unit="deg"/>
+    <define name="SERVO_EL_2_ZERO_VALUE" value="-2.54" unit="deg"/>
+    <define name="SERVO_EL_3_ZERO_VALUE" value="-0.35" unit="deg"/>
+    <define name="SERVO_EL_4_ZERO_VALUE" value="-2.72" unit="deg"/>
 
-    <define name="SERVO_AZ_1_ZERO_VALUE" value="0" unit="deg"/>
-    <define name="SERVO_AZ_2_ZERO_VALUE" value="0" unit="deg"/>
-    <define name="SERVO_AZ_3_ZERO_VALUE" value="0" unit="deg"/>
-    <define name="SERVO_AZ_4_ZERO_VALUE" value="0" unit="deg"/>
+    <define name="SERVO_AZ_1_ZERO_VALUE" value="1.6" unit="deg"/>
+    <define name="SERVO_AZ_2_ZERO_VALUE" value="6.45" unit="deg"/>
+    <define name="SERVO_AZ_3_ZERO_VALUE" value="-1.2" unit="deg"/>
+    <define name="SERVO_AZ_4_ZERO_VALUE" value="-1.95" unit="deg"/>
 
     <define name="MAX_THETA_INDI" value="60" unit="deg"/>
     <define name="MIN_THETA_INDI" value="-15" unit="deg"/>
@@ -479,6 +512,16 @@
 
   </section>
 
+  <section name="RPM_CONTROL_FBW" prefix="RPM_CONTROL_FBW_">
+    <define name="K_P_RAD_S_DSHOT" value="1" />
+    <define name="K_I_RAD_S_DSHOT" value="0.01" />
+    <define name="K_D_RAD_S_DSHOT" value="1" />
+
+    <define name="K_INDI_RAD_S_DSHOT" value="3" />
+    <define name="FILT_FIRST_ORDER_RPM_COEFF" value="0.09" /><!-- 1-exp(-cutoff_frequency/sampling_frequency)--> 
+
+  </section>
+
   <!-- Vehicle properties, see documentation for notation -->
   <section name="VEHICLE_PROPERTIES" prefix="VEHICLE_">
     <define name="I_XX" value="0.156548" unit="Kg*m^2"/>
@@ -509,12 +552,12 @@
 
 
   <!-- ************************* MAG EXTERNAL ************************* -->
-  <!-- <section name="MAG_RM3100" prefix="RM3100_">
+  <section name="MAG_RM3100" prefix="RM3100_">
     <define name="DATA_RATE" value="RM3100_RATE_600"/>
-  </section> -->
+  </section>
 
   <section name="MISC">
-    <define name="VoltageOfAdc(adc)" value="((3.3f/4096.0f) * 11 * adc)"/><!-- TODO: verify/calibrate -->
+    <define name="VoltageOfAdc(adc)" value="((3.3f/4096.0f) * 11.4 * adc)"/><!-- TODO: verify/calibrate -->
     <define name="NO_RC_THRUST_LIMIT" value="TRUE"/>
     <!--define name="UART7_CR2" value="(USART_CR2_STOP1_BITS | USART_CR2_SWAP_Msk)"/--> <!-- Swap RX/TX since RX doesn't work-->
 
@@ -546,11 +589,11 @@
   <section name="IMU" prefix="IMU_">
   
     <!-- Rotate the IMU (for Pixhawk 4) -->
-    <define name="MPU_CHAN_X" value="0"/>
-    <define name="MPU_CHAN_Y" value="1"/>
+    <define name="MPU_CHAN_X" value="1"/>
+    <define name="MPU_CHAN_Y" value="0"/>
     <define name="MPU_CHAN_Z" value="2"/>
     <define name="MPU_X_SIGN" value="1"/>
-    <define name="MPU_Y_SIGN" value="1"/>
+    <define name="MPU_Y_SIGN" value="-1"/>
     <define name="MPU_Z_SIGN" value="1"/>
 
     <!-- BEST AUTOPILOT -->
@@ -564,29 +607,27 @@
     <!-- BIG OFFSETS AUTOPILOT -->
 
     <!-- ACCEL @MAVLAB 1-11-2022 :  -->
-    <define name="ACCEL_CALIB" value="{{.abi_id=9, .calibrated={.neutral=true, .scale=true},.neutral={41,406,41}, .scale={{57668,10899,20979},{11789,2374,4318}}}}"/>
+    <!-- <define name="ACCEL_CALIB" value="{{.abi_id=9, .calibrated={.neutral=true, .scale=true},.neutral={41,406,41}, .scale={{57668,10899,20979},{11789,2374,4318}}}}"/> -->
     
-    <!-- <define name="ACCEL_X_NEUTRAL" value="41"/>
-<define name="ACCEL_Y_NEUTRAL" value="406"/>
-<define name="ACCEL_Z_NEUTRAL" value="41"/>
-<define name="ACCEL_X_SENS" value="4.891678687164927" integer="16"/>
-<define name="ACCEL_Y_SENS" value="4.590985687519081" integer="16"/>
-<define name="ACCEL_Z_SENS" value="4.858499293090481" integer="16"/>
+    <!-- NEW VALUES @MAVLAB 02-03-2023 -->
+<!-- <define name="ACCEL_CALIB" value="{{.abi_id=9, .calibrated={.neutral=true, .scale=true},.neutral={-158,-37,34}, .scale={{46269,9499,8828},{9893,1938,1837}}}}"/> -->
+     <define name="ACCEL_CALIB" value="{{.abi_id=9, .calibrated={.neutral=true, .scale=true},.neutral={-158,-37,34}, .scale={{46269,9499,8828},{9893,1938,1837}}}}"/>
 
-<define name="MAG_X_NEUTRAL" value="-9"/>
-<define name="MAG_Y_NEUTRAL" value="-9"/>
-<define name="MAG_Z_NEUTRAL" value="-8"/>
-<define name="MAG_X_SENS" value="16.496169856164315" integer="16"/>
-<define name="MAG_Y_SENS" value="15.114517995835124" integer="16"/>
-<define name="MAG_Z_SENS" value="16.64245181023045" integer="16"/> -->
 
+    <!-- <define name="MAG_X_NEUTRAL" value="-9"/>
+    <define name="MAG_Y_NEUTRAL" value="-9"/>
+    <define name="MAG_Z_NEUTRAL" value="-8"/>
+    <define name="MAG_X_SENS" value="16.496169856164315" integer="16"/>
+    <define name="MAG_Y_SENS" value="15.114517995835124" integer="16"/>
+    <define name="MAG_Z_SENS" value="16.64245181023045" integer="16"/>  -->
 
     <!-- IST8310 @MAVLAB 1-11-2022 -->
     <!-- <define name="MAG_CALIB" value="{{.abi_id=4, .calibrated={.neutral=true, .scale=true},.neutral={-9,-9,-8}, .scale={{47377,65068,14662},{2872,4305,881}}}}"/> -->
 
-    <define name="MAG_CALIB" value="{{.abi_id=4, .calibrated={.neutral=true, .scale=true},.neutral={-22,-7,4}, .scale={{16952,16373,64135},{1147,946,3651}}}}"/>
+    <!-- <define name="MAG_CALIB" value="{{.abi_id=4, .calibrated={.neutral=true, .scale=true},.neutral={-22,-7,4}, .scale={{16952,16373,64135},{1147,946,3651}}}}"/> -->
 
-
+    <!-- cyberzoo rm3100 02-03-2023 -->
+    <define name="MAG_CALIB" value="{{.abi_id=5, .calibrated={.neutral=true, .scale=true},.neutral={11,-37,-133}, .scale={{36440,14620,6911},{62271,25223,11910}}}}"/>
 
     <!-- Define axis in hover frame -->
     <define name="BODY_TO_IMU_PHI" value="0" unit="deg"/>

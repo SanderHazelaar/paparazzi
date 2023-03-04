@@ -775,7 +775,8 @@ void uart6_init(void)
 #endif
 
 #ifndef UART7_CR2
-#define UART7_CR2 (USART_CR2_STOP1_BITS | USART_CR2_SWAP_Msk)
+//Invert the UART 7 pin. The normal RX pin does not work, but we only need the RX pin. So we use the TX as RX by inverting the uart.
+#define UART7_CR2 (USART_CR2_STOP1_BITS | USART_CR2_SWAP_Msk) 
 #endif
 
 #ifndef UART7_CR3
