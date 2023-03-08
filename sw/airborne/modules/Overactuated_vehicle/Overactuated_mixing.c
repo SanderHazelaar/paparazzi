@@ -50,10 +50,10 @@
 #define MAX_DSHOT_VALUE 1999.0
 #define RPM_CONTROL
 
-#define TEST_RPM_CONTROL
-
 #define RPM_INDI_CONTROL
-#define TEST_DSHOT_CONTROL
+
+// #define TEST_RPM_CONTROL
+// #define TEST_DSHOT_CONTROL
 
 struct ESC_status myESC_status;
 
@@ -78,18 +78,23 @@ float psi_order_motor = 0;
 
 
 #ifdef RPM_CONTROL
-float K_indi_rad_s_dshot = RPM_CONTROL_FBW_K_INDI_RAD_S_DSHOT;
-float Des_RPM_motor_1 = 0;
-float Des_dshot_steps_motor_1 = 0;
-float motor_rad_s_filtered[4], motor_dshot_cmd_filtered[4];
 
+//PID RPM controller specific 
 float K_p_rad_s_dshot = RPM_CONTROL_FBW_K_P_RAD_S_DSHOT;
 float K_i_rad_s_dshot = RPM_CONTROL_FBW_K_I_RAD_S_DSHOT;
 float K_d_rad_s_dshot = RPM_CONTROL_FBW_K_D_RAD_S_DSHOT;
-
 float motor_rad_s_dot_filtered[4], motor_rad_s_error_integrated[4], motor_rad_s_filtered_old[4];
 
-float dshot_cmd_ppz[4];
+//Indi RPM controller specific variables:
+float dshot_cmd_ppz[4], dshot_cmd_ppz_filtered[4], dshot_cmd_ppz_filtered_delayed[4][RPM_CONTROL_FBW_MOTOR_DYN_DELAY_TS];
+float dshot_cmd_state_filtered[4];
+float K_indi_rad_s_dshot = RPM_CONTROL_FBW_K_INDI_RAD_S_DSHOT;
+
+//General RPM control variables: 
+float Des_RPM_motor_1 = 0;
+float Des_dshot_steps_motor_1 = 0;
+float motor_rad_s_filtered[4];
+
 #endif
 
 
@@ -301,12 +306,9 @@ static void send_overactuated_variables( struct transport_tx *trans , struct lin
  * Function for the message ACTUATORS_OUTPUT
  */
 static void send_actuator_variables( struct transport_tx *trans , struct link_device * dev ) {
-
-    int32_t local_var_1 = (int32_t) indi_u[0];
-    int32_t local_var_2 = (int32_t) motor_rad_s_filtered[0];
     pprz_msg_send_ACTUATORS_OUTPUT(trans , dev , AC_ID ,
-                                         & local_var_1,
-                                         & local_var_2,
+                                         & actuator_output[0],
+                                         & actuator_output[1],
                                          & actuator_output[2],
                                          & actuator_output[3],
                                          & actuator_output[4],
@@ -604,12 +606,6 @@ void assign_variables(void){
     R_matrix[1][0] = 0;                     R_matrix[1][1] = cos(euler_vect[0]);                      R_matrix[1][2] = -sin(euler_vect[0]);
     R_matrix[2][0] = -sin(euler_vect[1]);   R_matrix[2][1] = sin(euler_vect[0])*cos(euler_vect[1]);   R_matrix[2][2] = cos(euler_vect[0]) * cos(euler_vect[1]);
 
-
-    //Initialize actuator commands
-    for(int i = 0; i < 12; i++){
-        overactuated_mixing.commands[0] = 0;
-    }
-
     //Determination of the accelerations in the control rf:
     from_earth_to_control( accel_vect_control_rf, acc_vect, euler_vect[2]);
     from_earth_to_control( accel_vect_filt_control_rf, acc_vect_filt, euler_vect[2]);
@@ -862,19 +858,32 @@ void overactuated_mixing_run(void)
 
             pos_setpoint[2] = pos_vect[2];
 
-            //Zeroes all the integrated dshot cmds
+            //Init dshot RPM control cmds
+            #ifdef RPM_CONTROL
             if(RadioControlValues(RADIO_TH_HOLD) > 0){
                 for (int i = 0; i < 4; i++){
 
                     #ifdef RPM_INDI_CONTROL
-                    motor_dshot_cmd_filtered[i] = overactuated_mixing.commands[i];
-                    #else
+
+                    dshot_cmd_ppz_filtered[i] = overactuated_mixing.commands[i];
+                    for (int j = 0; j < RPM_CONTROL_FBW_MOTOR_DYN_DELAY_TS; j++){
+                        dshot_cmd_ppz_filtered_delayed[i][j] = overactuated_mixing.commands[i];
+                    }
+                    dshot_cmd_state_filtered[i] = overactuated_mixing.commands[i];
+                    dshot_cmd_ppz[i] = overactuated_mixing.commands[i];
+
+                    #else //PID RPM CONTROL
+
                     motor_rad_s_filtered_old[i] = actuator_state[i];
                     motor_rad_s_error_integrated[i] = 0;
-                    #endif
+
+                    #endif 
+
                     motor_rad_s_filtered[i] = actuator_state[i];
+
                 }
             }
+            #endif
         }
 
         //Correct the K_T with speed: 
@@ -1016,7 +1025,7 @@ void overactuated_mixing_run(void)
         pos_setpoint[0] = des_pos_earth_x;
         pos_setpoint[1] = des_pos_earth_y;
         if( abs(radio_control.values[RADIO_THROTTLE] - 4800) > deadband_stick_throttle ){
-            pos_setpoint[2]  = pos_setpoint[2]  - stick_gain_throttle * (radio_control.values[RADIO_THROTTLE] - 4800) * .00001;
+            pos_setpoint[2]  += - stick_gain_throttle * (radio_control.values[RADIO_THROTTLE] - 4800) * .00001;
         }
         Bound(pos_setpoint[2] ,-1000,1);
 
@@ -1132,7 +1141,11 @@ void overactuated_mixing_run(void)
         extra_data_out_local[8] = VEHICLE_L3;
         extra_data_out_local[9] = VEHICLE_L4;
         extra_data_out_local[10] = VEHICLE_LZ;
+        #ifdef RPM_CONTROL
+        extra_data_out_local[11] = RPM_CONTROL_FBW_MAX_OMEGA_RAD_S;
+        #else    
         extra_data_out_local[11] = OVERACTUATED_MIXING_MOTOR_MAX_OMEGA;
+        #endif
         extra_data_out_local[12] = OVERACTUATED_MIXING_MOTOR_MIN_OMEGA;
         extra_data_out_local[13] = (OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE * 180/M_PI);
 
@@ -1268,28 +1281,35 @@ void overactuated_mixing_run(void)
                 overactuated_mixing.commands[3] = (int32_t) (indi_u[3]);
 
                 #else
-
-                    motor_rad_s_filtered[0] = motor_rad_s_filtered[0] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (actuator_state[0] - motor_rad_s_filtered[0]);
-                    motor_rad_s_filtered[1] = motor_rad_s_filtered[1] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (actuator_state[1] - motor_rad_s_filtered[1]);
-                    motor_rad_s_filtered[2] = motor_rad_s_filtered[2] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (actuator_state[2] - motor_rad_s_filtered[2]);
-                    motor_rad_s_filtered[3] = motor_rad_s_filtered[3] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (actuator_state[3] - motor_rad_s_filtered[3]);
+                    //Apply first order filter to rotational speed to remove noise
+                    for(int i = 0; i<4; i++){
+                        motor_rad_s_filtered[i] = motor_rad_s_filtered[i] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (actuator_state[i] - motor_rad_s_filtered[i]);
+                    }
 
                     #ifdef RPM_INDI_CONTROL
 
-                    motor_dshot_cmd_filtered[0] = motor_dshot_cmd_filtered[0] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (dshot_cmd_ppz[0] - motor_dshot_cmd_filtered[0]);
-                    motor_dshot_cmd_filtered[1] = motor_dshot_cmd_filtered[1] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (dshot_cmd_ppz[1] - motor_dshot_cmd_filtered[1]);
-                    motor_dshot_cmd_filtered[2] = motor_dshot_cmd_filtered[2] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (dshot_cmd_ppz[2] - motor_dshot_cmd_filtered[2]);
-                    motor_dshot_cmd_filtered[3] = motor_dshot_cmd_filtered[3] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (dshot_cmd_ppz[3] - motor_dshot_cmd_filtered[3]);
+                        for (int i = 0; i < 4; i++){
+                            
+                            //Apply the same filter on the cmd that the one of the rotational speed:
+                            dshot_cmd_ppz_filtered[i] = dshot_cmd_ppz_filtered[i] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (dshot_cmd_ppz[i] - dshot_cmd_ppz_filtered[i]);
 
-                    dshot_cmd_ppz[0] = ( motor_dshot_cmd_filtered[0] + K_indi_rad_s_dshot * (indi_u[0] - motor_rad_s_filtered[0]));
-                    dshot_cmd_ppz[1] = ( motor_dshot_cmd_filtered[1] + K_indi_rad_s_dshot * (indi_u[1] - motor_rad_s_filtered[1]));
-                    dshot_cmd_ppz[2] = ( motor_dshot_cmd_filtered[2] + K_indi_rad_s_dshot * (indi_u[2] - motor_rad_s_filtered[2]));
-                    dshot_cmd_ppz[3] = ( motor_dshot_cmd_filtered[3] + K_indi_rad_s_dshot * (indi_u[3] - motor_rad_s_filtered[3]));
+                            //Shift the delayed cmd array:
+                            for (int j = 0; j < RPM_CONTROL_FBW_MOTOR_DYN_DELAY_TS - 1; j++){
+                                dshot_cmd_ppz_filtered_delayed[i][j] = dshot_cmd_ppz_filtered_delayed[i][j+1];
+                            }
+                            //Assign current value to the delayed array of state in the last position: 
+                            dshot_cmd_ppz_filtered_delayed[i][RPM_CONTROL_FBW_MOTOR_DYN_DELAY_TS-1] = dshot_cmd_ppz_filtered[i];
 
-                    overactuated_mixing.commands[0] = (int32_t) (dshot_cmd_ppz[0]);
-                    overactuated_mixing.commands[1] = (int32_t) (dshot_cmd_ppz[1]);
-                    overactuated_mixing.commands[2] = (int32_t) (dshot_cmd_ppz[2]);
-                    overactuated_mixing.commands[3] = (int32_t) (dshot_cmd_ppz[3]);
+                            //Estimate the cmd evolution based on the provided motor dynamics:
+                            dshot_cmd_state_filtered[i] = dshot_cmd_state_filtered[i] + RPM_CONTROL_FBW_MOTOR_DYN_COEFF * (dshot_cmd_ppz_filtered_delayed[i][0] - dshot_cmd_state_filtered[i]);
+
+                            //Compute the incremental ppz cmd for the motors:
+                            dshot_cmd_ppz[i] = ( dshot_cmd_state_filtered[i] + K_indi_rad_s_dshot * (indi_u[i] - motor_rad_s_filtered[i]));
+
+                            //Assign computed cmd to the output array: 
+                            overactuated_mixing.commands[i] = (int32_t) (dshot_cmd_ppz[i]);
+
+                        }
 
                     #else
 
@@ -1493,15 +1513,15 @@ void overactuated_mixing_run(void)
     actuator_output[2] = (int32_t) (overactuated_mixing.commands[2] / K_ppz_rads_motor);
     actuator_output[3] = (int32_t) (overactuated_mixing.commands[3] / K_ppz_rads_motor);
 
-    actuator_output[4] = (int32_t) ((overactuated_mixing.commands[4] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE) * 180/M_PI);
-    actuator_output[5] = (int32_t) ((overactuated_mixing.commands[5] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE) * 180/M_PI);
-    actuator_output[6] = (int32_t) ((overactuated_mixing.commands[6] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE) * 180/M_PI);
-    actuator_output[7] = (int32_t) ((overactuated_mixing.commands[7] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE) * 180/M_PI);
+    actuator_output[4] = (int32_t) ((overactuated_mixing.commands[4] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE) * 18000/M_PI);
+    actuator_output[5] = (int32_t) ((overactuated_mixing.commands[5] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE) * 18000/M_PI);
+    actuator_output[6] = (int32_t) ((overactuated_mixing.commands[6] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE) * 18000/M_PI);
+    actuator_output[7] = (int32_t) ((overactuated_mixing.commands[7] / K_ppz_angle_el + OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE) * 18000/M_PI);
 
-    actuator_output[8] = (int32_t) ((overactuated_mixing.commands[8] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE) * 180/M_PI);
-    actuator_output[9] = (int32_t) ((overactuated_mixing.commands[9] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE) * 180/M_PI);
-    actuator_output[10] = (int32_t) ((overactuated_mixing.commands[10] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE) * 180/M_PI);
-    actuator_output[11] = (int32_t) ((overactuated_mixing.commands[11] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE) * 180/M_PI);
+    actuator_output[8] = (int32_t) ((overactuated_mixing.commands[8] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE) * 18000/M_PI);
+    actuator_output[9] = (int32_t) ((overactuated_mixing.commands[9] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE) * 18000/M_PI);
+    actuator_output[10] = (int32_t) ((overactuated_mixing.commands[10] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE) * 18000/M_PI);
+    actuator_output[11] = (int32_t) ((overactuated_mixing.commands[11] / K_ppz_angle_az + OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE) * 18000/M_PI);
 
     //Actuator state message:
     actuator_state_int[0] = (int32_t) (actuator_state[0]);
@@ -1509,18 +1529,18 @@ void overactuated_mixing_run(void)
     actuator_state_int[2] = (int32_t) (actuator_state[2]);
     actuator_state_int[3] = (int32_t) (actuator_state[3]);
 
-    actuator_state_int[4] = (int32_t) (actuator_state[4] * 180/M_PI);
-    actuator_state_int[5] = (int32_t) (actuator_state[5] * 180/M_PI);
-    actuator_state_int[6] = (int32_t) (actuator_state[6] * 180/M_PI);
-    actuator_state_int[7] = (int32_t) (actuator_state[7] * 180/M_PI);
+    actuator_state_int[4] = (int32_t) (actuator_state[4] * 18000/M_PI);
+    actuator_state_int[5] = (int32_t) (actuator_state[5] * 18000/M_PI);
+    actuator_state_int[6] = (int32_t) (actuator_state[6] * 18000/M_PI);
+    actuator_state_int[7] = (int32_t) (actuator_state[7] * 18000/M_PI);
 
-    actuator_state_int[8] = (int32_t) (actuator_state[8] * 180/M_PI);
-    actuator_state_int[9] = (int32_t) (actuator_state[9] * 180/M_PI);
-    actuator_state_int[10] = (int32_t) (actuator_state[10] * 180/M_PI);
-    actuator_state_int[11] = (int32_t) (actuator_state[11] * 180/M_PI);
+    actuator_state_int[8] = (int32_t) (actuator_state[8] * 18000/M_PI);
+    actuator_state_int[9] = (int32_t) (actuator_state[9] * 18000/M_PI);
+    actuator_state_int[10] = (int32_t) (actuator_state[10] * 18000/M_PI);
+    actuator_state_int[11] = (int32_t) (actuator_state[11] * 18000/M_PI);
 
     //Ailerons
-    actuator_state_int[12] = (int32_t) (actuator_state[14] * 180/M_PI);
+    actuator_state_int[12] = (int32_t) (actuator_state[14] * 18000/M_PI);
 
 }
 
