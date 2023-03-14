@@ -125,10 +125,13 @@ extern bool yaw_with_tilting_PID;
 extern bool manual_heading;
 extern int manual_heading_value_rad;
 
-//Variables for the RPM controller: 
+//Variables for the FBW controller: 
 extern float K_indi_rad_s_dshot, Des_RPM_motor_1, Des_dshot_steps_motor_1;
 
 extern float K_p_rad_s_dshot, K_i_rad_s_dshot, K_d_rad_s_dshot;
+
+extern int min_pwm_servo_9, max_pwm_servo_9, neutral_pwm_servo_9, min_pwm_servo_10, max_pwm_servo_10, neutral_pwm_servo_10; 
+extern float desired_angle_servo_9, desired_angle_servo_10;
 
 /* External used functions */
 extern void overactuated_mixing_init(void);

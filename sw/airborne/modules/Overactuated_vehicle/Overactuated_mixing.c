@@ -52,6 +52,7 @@
 
 #define RPM_INDI_CONTROL
 
+// #define TEST_PWM_SERVOS
 // #define TEST_RPM_CONTROL
 // #define TEST_DSHOT_CONTROL
 
@@ -97,7 +98,19 @@ float motor_rad_s_filtered[4];
 
 #endif
 
+//Test PWM servos external to teensy: 
+int min_pwm_servo_9 = FBW_T4_SERVO_9_MIN_PWM;
+int max_pwm_servo_9 = FBW_T4_SERVO_9_MAX_PWM; 
+int neutral_pwm_servo_9 = FBW_T4_SERVO_9_NEUTRAL_PWM; 
 
+int min_pwm_servo_10 = FBW_T4_SERVO_10_MIN_PWM; 
+int max_pwm_servo_10 = FBW_T4_SERVO_10_MAX_PWM; 
+int neutral_pwm_servo_10 = FBW_T4_SERVO_10_NEUTRAL_PWM; 
+
+float desired_angle_servo_9 = 0;
+float desired_angle_servo_10 = 0;
+
+//Sideslip gains
 float K_beta = 0.15;
 
 float Dynamic_MOTOR_K_T_OMEGASQ;
@@ -136,7 +149,12 @@ int servo_right_cmd = 0;
 int servo_left_cmd = 0;
 
 // Actuators gains:
+#ifdef RPM_CONTROL
+float K_ppz_rads_motor = 9.6;
+#else
 float K_ppz_rads_motor = 9.6 / OVERACTUATED_MIXING_MOTOR_K_PWM_OMEGA;
+#endif
+
 float K_ppz_angle_el = (9600 * 2) / (OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE);
 float K_ppz_angle_az = (9600 * 2) / (OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE);
 
@@ -785,6 +803,19 @@ void overactuated_mixing_run(void)
             overactuated_mixing.commands[11] -= (int32_t) (euler_order[2] * K_ppz_angle_az);
         }
 
+        #ifdef FBW_ACTUATORS
+        Bound(overactuated_mixing.commands[4],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE)*K_ppz_angle_el);
+        Bound(overactuated_mixing.commands[5],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE)*K_ppz_angle_el);
+        Bound(overactuated_mixing.commands[6],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE)*K_ppz_angle_el);
+        Bound(overactuated_mixing.commands[7],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE)*K_ppz_angle_el);
+
+        Bound(overactuated_mixing.commands[8],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE)*K_ppz_angle_az);
+        Bound(overactuated_mixing.commands[9],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE)*K_ppz_angle_az);
+        Bound(overactuated_mixing.commands[10],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE)*K_ppz_angle_az);
+        Bound(overactuated_mixing.commands[11],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE)*K_ppz_angle_az);
+        
+        #endif
+
         //Add servos values:
         servo_right_cmd = neutral_servo_1_pwm;
         servo_left_cmd = neutral_servo_2_pwm;
@@ -1272,6 +1303,26 @@ void overactuated_mixing_run(void)
 
                 #endif
 
+                #ifdef TEST_PWM_SERVOS
+
+                        indi_u[0] = 0;
+                        indi_u[1] = 0;
+                        indi_u[2] = 0;
+                        indi_u[3] = 0;
+                        indi_u[4] = 0;
+                        indi_u[5] = 0;
+                        indi_u[6] = 0;
+                        indi_u[7] = 0;
+                        indi_u[8] = 0;
+                        indi_u[9] = 0;
+                        indi_u[10] = 0;
+                        indi_u[11] = 0;
+                        indi_u[12] = 0;
+                        indi_u[13] = 0;
+                        indi_u[14] = 0;
+
+                #endif
+        
 
                 #ifdef TEST_DSHOT_CONTROL
 
@@ -1413,14 +1464,10 @@ void overactuated_mixing_run(void)
         Bound(servo_right_cmd,1000,2000);
         Bound(servo_left_cmd,1000,2000);
 
-        #ifdef FBW_ACTUATORS
         //Submit value to external servo: 
         am7_data_out_local.pwm_servo_1_int = (int16_t) (indi_u[14]*18000/M_PI);
         am7_data_out_local.pwm_servo_2_int = (int16_t) (indi_u[14]*18000/M_PI);
-        #endif
         
-
-
         roll_cmd = servo_right_cmd;
         pitch_cmd = servo_left_cmd;
 
@@ -1457,7 +1504,10 @@ void overactuated_mixing_run(void)
             myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[0] * MAX_DSHOT_VALUE / 9600.0); 
             myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[1] * MAX_DSHOT_VALUE / 9600.0); 
             myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[2] * MAX_DSHOT_VALUE / 9600.0); 
-            myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[3] * MAX_DSHOT_VALUE / 9600.0);      
+            myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[3] * MAX_DSHOT_VALUE / 9600.0); 
+            //Aileron servos cmd: 
+            myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (indi_u[14] * 100.0 * 180.0/M_PI );
+            myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (indi_u[14] * 100.0 * 180.0/M_PI );     
         }
         else{
             //Disarm motor:
@@ -1467,7 +1517,11 @@ void overactuated_mixing_run(void)
             myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (0); 
             myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (0); 
             myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (0); 
+            //Aileron servos cmd:
+            myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (10 * 100); //10 degrees up 
+            myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (10 * 100); //10 degrees down ;  
         }
+
         //Elevator servos cmd: 
         myserial_act_t4_out_local.servo_2_cmd_int = (int16_t) ( ( overactuated_mixing.commands[4] / K_ppz_angle_el ) * 100 * FBW_T4_K_RATIO_GEAR_EL * 180/M_PI );
         myserial_act_t4_out_local.servo_6_cmd_int = (int16_t) ( ( overactuated_mixing.commands[5] / K_ppz_angle_el ) * 100 * FBW_T4_K_RATIO_GEAR_EL * 180/M_PI );
@@ -1478,17 +1532,20 @@ void overactuated_mixing_run(void)
         myserial_act_t4_out_local.servo_5_cmd_int = (int16_t) ( ( overactuated_mixing.commands[9] / K_ppz_angle_az ) * 100 * FBW_T4_K_RATIO_GEAR_AZ * 180/M_PI );
         myserial_act_t4_out_local.servo_7_cmd_int = (int16_t) ( ( -overactuated_mixing.commands[10] / K_ppz_angle_az ) * 100 * FBW_T4_K_RATIO_GEAR_AZ * 180/M_PI );
         myserial_act_t4_out_local.servo_3_cmd_int = (int16_t) ( ( -overactuated_mixing.commands[11] / K_ppz_angle_az ) * 100 * FBW_T4_K_RATIO_GEAR_AZ * 180/M_PI );
-        //Aileron servos cmd: 
-        myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (indi_u[14] * 100.0 * 180.0/M_PI );
-        myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (indi_u[14] * 100.0 * 180.0/M_PI );
+
+
+        #ifdef TEST_PWM_SERVOS
+            myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (desired_angle_servo_9 * 100);
+            myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (desired_angle_servo_10 * 100);
+        #endif
 
         //Assign extra data: 
         serial_act_t4_extra_data_out_local[0] = FBW_T4_AILERONS_FIRST_ORD_DEN;
         serial_act_t4_extra_data_out_local[1] = FBW_T4_AILERONS_FIRST_ORD_NUM;
         
-        serial_act_t4_extra_data_out_local[2] = FBW_T4_SERVO_9_MAX_PWM;
-        serial_act_t4_extra_data_out_local[3] = FBW_T4_SERVO_9_MIN_PWM;
-        serial_act_t4_extra_data_out_local[4] = FBW_T4_SERVO_9_NEUTRAL_PWM;
+        serial_act_t4_extra_data_out_local[2] = max_pwm_servo_9;
+        serial_act_t4_extra_data_out_local[3] = min_pwm_servo_9;
+        serial_act_t4_extra_data_out_local[4] = neutral_pwm_servo_9;
         serial_act_t4_extra_data_out_local[5] = FBW_T4_SERVO_9_MIN_ANGLE_DEG;
         serial_act_t4_extra_data_out_local[6] = FBW_T4_SERVO_9_MAX_ANGLE_DEG;
         serial_act_t4_extra_data_out_local[7] = FBW_T4_SERVO_9_DELAY_TS;
@@ -1496,9 +1553,9 @@ void overactuated_mixing_run(void)
         serial_act_t4_extra_data_out_local[8] = FBW_T4_AILERONS_FIRST_ORD_DEN;
         serial_act_t4_extra_data_out_local[9] = FBW_T4_AILERONS_FIRST_ORD_NUM;  
         
-        serial_act_t4_extra_data_out_local[10] = FBW_T4_SERVO_10_MAX_PWM;
-        serial_act_t4_extra_data_out_local[11] = FBW_T4_SERVO_10_MIN_PWM;
-        serial_act_t4_extra_data_out_local[12] = FBW_T4_SERVO_10_NEUTRAL_PWM;
+        serial_act_t4_extra_data_out_local[10] = max_pwm_servo_10;
+        serial_act_t4_extra_data_out_local[11] = min_pwm_servo_10;
+        serial_act_t4_extra_data_out_local[12] = neutral_pwm_servo_10;
         serial_act_t4_extra_data_out_local[13] = FBW_T4_SERVO_10_MIN_ANGLE_DEG;
         serial_act_t4_extra_data_out_local[14] = FBW_T4_SERVO_10_MAX_ANGLE_DEG;
         serial_act_t4_extra_data_out_local[15] = FBW_T4_SERVO_10_DELAY_TS;

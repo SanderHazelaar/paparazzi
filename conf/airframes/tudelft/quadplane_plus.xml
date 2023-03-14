@@ -147,27 +147,23 @@
     <module name="stabilization" type="indi_simple"/>
     <module name="stabilization" type="rate_indi"/>
 
-    <module name="ins"           type="extended" />
+    <!-- <module name="ins"           type="extended" /> -->
 
 
-   <!-- <module name="ins" type="ekf2"> -->
+   <module name="ins" type="ekf2">
     <!-- <define name="INS_EKF2_MAG_ID" value="MAG_IST8310_SENDER_ID"/> -->
-    <!-- <define name="INS_EKF2_MAG_ID" value="MAG_RM3100_SENDER_ID"/> -->
+    <define name="INS_EKF2_MAG_ID" value="MAG_RM3100_SENDER_ID"/>
     <!-- <define name="INS_EKF2_MAG_ID" value="MAG_LIS3MDL_SENDER_ID"/> -->
     <!-- <define name="INS_EKF2_OPTITRACK" value="TRUE"/> -->
-   <!-- </module> -->
+   </module>
 
-    <module name="ahrs"          type="float_cmpl_quat">
-     <configure name="USE_MAGNETOMETER" value="TRUE"/>
-     <define name="AHRS_USE_GPS_HEADING" value="FALSE"/>
-     <!-- OPTITRACK -->
-     <!-- <define name="USE_BARO" value="FALSE"/> -->
-     <define name="AHRS_BIAS_UPDATE_HEADING_THRESHOLD" value="0.174533" unit="rad"/>
-     <define name="AHRS_FC_MAG_ID" value="MAG_RM3100_SENDER_ID" />
-    </module>
+    <!-- <module name="ahrs"          type="float_cmpl_quat"> -->
+     <!-- <configure name="USE_MAGNETOMETER" value="TRUE"/> -->
+     <!-- <define name="AHRS_USE_GPS_HEADING" value="FALSE"/> -->
+     <!-- <define name="AHRS_BIAS_UPDATE_HEADING_THRESHOLD" value="0.174533" unit="rad"/> -->
+     <!-- <define name="AHRS_FC_MAG_ID" value="MAG_RM3100_SENDER_ID" /> -->
+    <!-- </module> -->
 
-
-<!-- <configure name="USE_BARO_BOARD" value="FALSE"/> -->
 
     <module name="air_data"/>
 
@@ -305,19 +301,19 @@
     <define name="AILERONS_FIRST_ORD_NUM" value="0.0198" />
     <define name="AILERONS_FIRST_ORD_DEN" value="-0.9802" />
 
-    <define name="SERVO_9_MIN_PWM" value="1200" />   
-    <define name="SERVO_9_MAX_PWM" value="1800" />   
-    <define name="SERVO_9_NEUTRAL_PWM" value="1500" /> 
+    <define name="SERVO_9_MIN_PWM" value="2246" />   
+    <define name="SERVO_9_MAX_PWM" value="843" />   
+    <define name="SERVO_9_NEUTRAL_PWM" value="1390" /> 
     <define name="SERVO_9_MIN_ANGLE_DEG" value="-25" /> 
     <define name="SERVO_9_MAX_ANGLE_DEG" value="25" /> 
-    <define name="SERVO_9_DELAY_TS" value="7" /> 
+    <define name="SERVO_9_DELAY_TS" value="5" /> 
 
-    <define name="SERVO_10_MIN_PWM" value="1200" />   
-    <define name="SERVO_10_MAX_PWM" value="1800" />   
-    <define name="SERVO_10_NEUTRAL_PWM" value="1500" /> 
+    <define name="SERVO_10_MIN_PWM" value="2217" />   
+    <define name="SERVO_10_MAX_PWM" value="850" />   
+    <define name="SERVO_10_NEUTRAL_PWM" value="1579" /> 
     <define name="SERVO_10_MIN_ANGLE_DEG" value="-25" /> 
     <define name="SERVO_10_MAX_ANGLE_DEG" value="25" /> 
-    <define name="SERVO_10_DELAY_TS" value="7" /> 
+    <define name="SERVO_10_DELAY_TS" value="5" /> 
 
   </section>
 
@@ -512,14 +508,14 @@
     <define name="W_ACT_AILERONS_CONST" value="0.5"/>
     <define name="W_ACT_AILERONS_SPEED" value="0"/>
 
-    <define name="W_DV_1" value="0.005"/>
-    <define name="W_DV_2" value="0.005"/>
-    <define name="W_DV_3" value="0.008"/>
-    <define name="W_DV_4" value="0.015"/>
-    <define name="W_DV_5" value="0.015"/>
-    <define name="W_DV_6" value="0.015"/>
+    <define name="W_DV_1" value="0.0067"/>
+    <define name="W_DV_2" value="0.0067"/>
+    <define name="W_DV_3" value="0.01"/>
+    <define name="W_DV_4" value="0.02"/>
+    <define name="W_DV_5" value="0.02"/>
+    <define name="W_DV_6" value="0.02"/>
 
-    <define name="GAMMA_QUADRATIC_DU" value="4e-6"/>
+    <define name="GAMMA_QUADRATIC_DU" value="0.7e-5"/>
 
     <!-- FWD flight properties for yaw rate induced by controller and for removal of lateral speed term-->
     <define name="MIN_SPEED_TRANSITION" value="4.0" unit="m/s"/>
@@ -559,8 +555,8 @@
     <define name="MASS" value="2.45" unit="Kg"/>
     <define name="L1" value="0.228" unit="m"/>
     <define name="L2" value="0.228" unit="m"/>
-    <define name="L3" value="0.40" unit="m"/>
-    <define name="L4" value="0.35" unit="m"/>
+    <define name="L3" value="0.37" unit="m"/>
+    <define name="L4" value="0.38" unit="m"/>
     <define name="LZ" value="0." unit="m"/>
 
     <define name="CL_ALPHA" value="3.5"/>
