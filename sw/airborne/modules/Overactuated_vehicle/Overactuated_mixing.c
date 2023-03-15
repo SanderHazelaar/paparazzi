@@ -50,6 +50,7 @@
 #define MAX_DSHOT_VALUE 1999.0
 #define RPM_CONTROL
 
+// Decide if you want INDI RPM control or PID RPM control. Default is PID. 
 #define RPM_INDI_CONTROL
 
 // #define TEST_PWM_SERVOS
@@ -106,6 +107,7 @@ int neutral_pwm_servo_9 = FBW_T4_SERVO_9_NEUTRAL_PWM;
 int min_pwm_servo_10 = FBW_T4_SERVO_10_MIN_PWM; 
 int max_pwm_servo_10 = FBW_T4_SERVO_10_MAX_PWM; 
 int neutral_pwm_servo_10 = FBW_T4_SERVO_10_NEUTRAL_PWM; 
+
 
 float desired_angle_servo_9 = 0;
 float desired_angle_servo_10 = 0;

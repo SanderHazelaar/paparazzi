@@ -37,7 +37,7 @@
         <define name="MS45XX_OUTPUT_TYPE" value="0"/> <!--description="set to 0 for output type A, to 1 for output type B (default: type A)"/>-->
         <define name="MS45XX_SYNC_SEND" value="TRUE" /> <!--description="flag to enable sending every new measurement via telemetry (default:FALSE)-->
         <define name="MS45XX_PRESSURE_SCALE" value="1.052"/> <!--description="pressure scaling factor to convert raw output to Pa (default: set according to pressure range and output type according to datasheet)"-->
-        <define name="MS45XX_PRESSURE_OFFSET" value="8520.3" /><!-- 8507.3 description="pressure offset in Pa (default: set according to pressure range and output type according to datasheet)-->
+        <define name="MS45XX_PRESSURE_OFFSET" value="8513" /><!-- 8507.3 description="pressure offset in Pa (default: set according to pressure range and output type according to datasheet)-->
 <!--        <define name="MS45XX_AIRSPEED_SCALE" value="1.6327"/> &lt;!&ndash;description="quadratic scale factor to convert differential pressure to airspeed"&ndash;&gt;-->
         <define name="MS45XX_LOWPASS_TAU" value="0.2"/> <!--description="Time constant for second order Butterworth low pass filter"-->
         <define name="USE_AIRSPEED_MS45XX" value="TRUE"/> <!--description="Set airspeed in state interface for this sensor" -->
@@ -135,13 +135,13 @@
     <module name="imu"           type="mpu6000"/>
 
     <!--     For OUTSIDE -->
-    <!-- <module name="gps" type="ublox">
+    <module name="gps" type="ublox">
       <configure name="GPS_BAUD" value="B460800"/> 
-    </module> -->
+    </module>
 
     <!--     For OPTITRACK -->
-   <module name="gps"           type="datalink">
-   </module>
+   <!-- <module name="gps"           type="datalink"> -->
+   <!-- </module> -->
 
 
     <module name="stabilization" type="indi_simple"/>
@@ -154,7 +154,7 @@
     <!-- <define name="INS_EKF2_MAG_ID" value="MAG_IST8310_SENDER_ID"/> -->
     <define name="INS_EKF2_MAG_ID" value="MAG_RM3100_SENDER_ID"/>
     <!-- <define name="INS_EKF2_MAG_ID" value="MAG_LIS3MDL_SENDER_ID"/> -->
-    <!-- <define name="INS_EKF2_OPTITRACK" value="TRUE"/> -->
+    <define name="INS_EKF2_OPTITRACK" value="TRUE"/>
    </module>
 
     <!-- <module name="ahrs"          type="float_cmpl_quat"> -->
@@ -440,11 +440,19 @@
     <!-- <define name="MOTOR_K_T_OMEGASQ_P1" value="0.133851e-5" />
     <define name="MOTOR_K_T_OMEGASQ_P2" value="-1.125262e-5" /> -->
 
+    <!-- <define name="MOTOR_K_T_OMEGASQ_P1" value="0" /> -->
+    <!-- <define name="MOTOR_K_T_OMEGASQ_P2" value="0.545e-5" unit="N/(rad/s)^2"/> -->
+    <!-- <define name="MOTOR_K_M_OMEGASQ" value="0.936722e-7" unit="N*m/(rad/s)^2"/> -->
+    <!-- <define name="MOTOR_K_PWM_OMEGA" value="1.4" unit="(rad/s)/PWM"/> -->
+    <!-- <define name="MOTOR_MAX_OMEGA" value="1400" unit="rad/s"/> -->
+
+    <!-- 10x5.5 TMOTOR CF prop -->
     <define name="MOTOR_K_T_OMEGASQ_P1" value="0" />
-    <define name="MOTOR_K_T_OMEGASQ_P2" value="0.545e-5" unit="N/(rad/s)^2"/>
-    <define name="MOTOR_K_M_OMEGASQ" value="0.936722e-7" unit="N*m/(rad/s)^2"/>
-    <define name="MOTOR_K_PWM_OMEGA" value="1.4" unit="(rad/s)/PWM"/>
-    <define name="MOTOR_MAX_OMEGA" value="1400" unit="rad/s"/>
+    <define name="MOTOR_K_T_OMEGASQ_P2" value="1.106465e-5" unit="N/(rad/s)^2"/>
+    <define name="MOTOR_K_M_OMEGASQ" value="1.835091e-7" unit="N*m/(rad/s)^2"/>
+    <define name="MOTOR_K_PWM_OMEGA" value="1" unit="(rad/s)/PWM"/>
+    <define name="MOTOR_MAX_OMEGA" value="1000" unit="rad/s"/>
+
 
     <!-- 10x5 CF prop -->
     <!-- <define name="MOTOR_K_T_OMEGASQ_P1" value="0" />
@@ -531,17 +539,25 @@
     
     <define name="FILT_FIRST_ORDER_RPM_COEFF" value="0.1131" /><!-- 1-exp(-cutoff_frequency/sampling_frequency) [60rad/s]--> 
 
-    <!-- 9x5 CF propeller -->
-    <define name="K_INDI_RAD_S_DSHOT" value="6.5" />
-    <define name="MOTOR_DYN_COEFF" value="0.0676" /> 
+    <!-- 9x5 CF propeller MULTISTAR-->
+    <!-- <define name="K_INDI_RAD_S_DSHOT" value="6.5" /> -->
+    <!-- <define name="MOTOR_DYN_COEFF" value="0.0676" />  -->
+    <!-- <define name="MOTOR_DYN_DELAY_TS" value="3" /> -->
+    <!-- <define name="MAX_OMEGA_RAD_S" value="1400" />  -->
+
+    <!-- 10x5.5 TMOTOR CF propeller -->
+    <define name="K_INDI_RAD_S_DSHOT" value="8.81" />
+    <define name="MOTOR_DYN_COEFF" value="0.039211" />
     <define name="MOTOR_DYN_DELAY_TS" value="3" />
-    <define name="MAX_OMEGA_RAD_S" value="1400" /> 
+    <define name="MAX_OMEGA_RAD_S" value="1000" /> 
 
     <!-- 9x6 APC propeller -->
     <!-- <define name="K_INDI_RAD_S_DSHOT" value="8.170213" /> -->
     <!-- <define name="MOTOR_DYN_COEFF" value="0.039211" /> -->
     <!-- <define name="MOTOR_DYN_DELAY_TS" value="3" />  -->
     <!-- <define name="MAX_OMEGA_RAD_S" value="1050" />  -->
+
+
 
   </section>
 
