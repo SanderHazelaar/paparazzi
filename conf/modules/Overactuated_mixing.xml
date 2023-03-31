@@ -28,6 +28,9 @@
         <dl_setting var="neutral_pwm_servo_10"  min="0" step="1" max="2500" shortname="neutral_pwm_servo_10" />
         <dl_setting var="desired_angle_servo_10"  min="-50" step="1" max="50" shortname="desired_angle_servo_10" />
 
+        <dl_setting var="des_az_angle_test"  min="-200" step="1" max="200" shortname="des_az_angle_test" />
+        <dl_setting var="des_el_angle_test"  min="-200" step="1" max="200" shortname="des_el_angle_test" />
+
       </dl_settings>
     </dl_settings>
   </settings>

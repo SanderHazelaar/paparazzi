@@ -56,6 +56,11 @@
 // #define TEST_PWM_SERVOS
 // #define TEST_RPM_CONTROL
 // #define TEST_DSHOT_CONTROL
+// #define TEST_ROTOR_ANGLES
+
+// #define TEST_RASMUS_SERVO
+// float time_old = 0; 
+// float test_frequency = 0.5;
 
 struct ESC_status myESC_status;
 
@@ -78,6 +83,10 @@ float pos_order_earth[3];
 float euler_order[3];
 float psi_order_motor = 0;
 
+
+//Rotors test: 
+float des_az_angle_test = 0; 
+float des_el_angle_test = 0;
 
 #ifdef RPM_CONTROL
 
@@ -129,7 +138,7 @@ bool INDI_engaged = 0, FAILSAFE_engaged = 0;
 
 // PID and general settings from slider
 int deadband_stick_yaw = 300, deadband_stick_throttle = 300;
-float stick_gain_yaw = 0.01, stick_gain_throttle = 0.03; //  Stick to yaw and throttle gain (for the integral part)
+float stick_gain_yaw = 0.05, stick_gain_throttle = 0.03; //  Stick to yaw and throttle gain (for the integral part)
 bool yaw_with_tilting_PID = 1;
 
 bool manual_heading = 0;
@@ -805,25 +814,12 @@ void overactuated_mixing_run(void)
             overactuated_mixing.commands[11] -= (int32_t) (euler_order[2] * K_ppz_angle_az);
         }
 
-        #ifdef FBW_ACTUATORS
-        Bound(overactuated_mixing.commands[4],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE)*K_ppz_angle_el);
-        Bound(overactuated_mixing.commands[5],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE)*K_ppz_angle_el);
-        Bound(overactuated_mixing.commands[6],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE)*K_ppz_angle_el);
-        Bound(overactuated_mixing.commands[7],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE)*K_ppz_angle_el);
-
-        Bound(overactuated_mixing.commands[8],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE)*K_ppz_angle_az);
-        Bound(overactuated_mixing.commands[9],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE)*K_ppz_angle_az);
-        Bound(overactuated_mixing.commands[10],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE)*K_ppz_angle_az);
-        Bound(overactuated_mixing.commands[11],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE)*K_ppz_angle_az);
-        
-        #endif
-
         //Add servos values:
         servo_right_cmd = neutral_servo_1_pwm;
         servo_left_cmd = neutral_servo_2_pwm;
 
-        myserial_act_t4_out_local.servo_9_cmd_int = 0;
-        myserial_act_t4_out_local.servo_10_cmd_int = 0;
+        indi_u[14] = 0;
+
         Bound(servo_right_cmd,1000,2000);
         Bound(servo_left_cmd,1000,2000);
 
@@ -1180,6 +1176,7 @@ void overactuated_mixing_run(void)
         extra_data_out_local[11] = OVERACTUATED_MIXING_MOTOR_MAX_OMEGA;
         #endif
         extra_data_out_local[12] = OVERACTUATED_MIXING_MOTOR_MIN_OMEGA;
+
         extra_data_out_local[13] = (OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE * 180/M_PI);
 
         extra_data_out_local[14] = (OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE * 180/M_PI);
@@ -1261,9 +1258,7 @@ void overactuated_mixing_run(void)
             overactuated_mixing.commands[1] = (int32_t)(indi_u[1] * K_ppz_rads_motor);
             overactuated_mixing.commands[2] = (int32_t)(indi_u[2] * K_ppz_rads_motor);
             overactuated_mixing.commands[3] = (int32_t)(indi_u[3] * K_ppz_rads_motor);
-
-            #else 
-
+            #else //RPM CONTROL ON TEENSY
                 //TESTING:
                 #ifdef TEST_RPM_CONTROL
 
@@ -1284,7 +1279,6 @@ void overactuated_mixing_run(void)
                 indi_u[14] = 0;
 
                 #endif
-
                 #ifdef TEST_DSHOT_CONTROL
 
                 indi_u[0] = Des_dshot_steps_motor_1*600;
@@ -1304,7 +1298,6 @@ void overactuated_mixing_run(void)
                 indi_u[14] = 0;
 
                 #endif
-
                 #ifdef TEST_PWM_SERVOS
 
                         indi_u[0] = 0;
@@ -1323,17 +1316,58 @@ void overactuated_mixing_run(void)
                         indi_u[13] = 0;
                         indi_u[14] = 0;
 
-                #endif
-        
-
+                #endif    
                 #ifdef TEST_DSHOT_CONTROL
-
                 overactuated_mixing.commands[0] = (int32_t) (indi_u[0]);
                 overactuated_mixing.commands[1] = (int32_t) (indi_u[1]);
                 overactuated_mixing.commands[2] = (int32_t) (indi_u[2]);
                 overactuated_mixing.commands[3] = (int32_t) (indi_u[3]);
+                #endif 
 
-                #else
+                #ifdef TEST_ROTOR_ANGLES
+                    indi_u[0] = 0;
+                    indi_u[1] = 0;
+                    indi_u[2] = 0;
+                    indi_u[3] = 0;
+                    indi_u[4] = des_el_angle_test*M_PI/180;
+                    indi_u[5] = des_el_angle_test*M_PI/180;
+                    indi_u[6] = des_el_angle_test*M_PI/180;
+                    indi_u[7] = des_el_angle_test*M_PI/180;
+                    indi_u[8] = des_az_angle_test*M_PI/180;
+                    indi_u[9] = des_az_angle_test*M_PI/180;
+                    indi_u[10] = des_az_angle_test*M_PI/180;
+                    indi_u[11] = des_az_angle_test*M_PI/180;
+                    indi_u[12] = 0;
+                    indi_u[13] = 0;
+                    indi_u[14] = 0;
+                #endif
+
+                #ifdef TEST_RASMUS_SERVO
+                    if(get_sys_time_float() - time_old > 1.5 && get_sys_time_float() > 40){
+                        test_frequency +=0.5;
+                        time_old = get_sys_time_float();
+                    }
+                    indi_u[0] = 0;
+                    indi_u[1] = 0;
+                    indi_u[2] = 0;
+                    indi_u[3] = 0;
+                    indi_u[4] = 5*sin(get_sys_time_float()*test_frequency*2*M_PI)*M_PI/180;
+                    indi_u[5] = 0;
+                    indi_u[6] = 0;
+                    indi_u[7] = 0;
+                    indi_u[8] = 0;
+                    indi_u[9] = 0;
+                    indi_u[10] = 0;
+                    indi_u[11] = 0;
+                    indi_u[12] = 0;
+                    indi_u[13] = 0;
+                    indi_u[14] = 0;
+                    actuator_output[12] = (int32_t) (test_frequency*100);
+                #endif
+
+                //END TESTING
+
+                #ifndef TEST_DSHOT_CONTROL
                     //Apply first order filter to rotational speed to remove noise
                     for(int i = 0; i<4; i++){
                         motor_rad_s_filtered[i] = motor_rad_s_filtered[i] + RPM_CONTROL_FBW_FILT_FIRST_ORDER_RPM_COEFF * (actuator_state[i] - motor_rad_s_filtered[i]);
@@ -1364,9 +1398,9 @@ void overactuated_mixing_run(void)
 
                         }
 
-                    #else
+                    #endif
 
-                    //PID implementation
+                    #ifndef RPM_INDI_CONTROL //PID RPM control
 
                     //Derivative term:
                     motor_rad_s_dot_filtered[0] = (motor_rad_s_filtered_old[0] - motor_rad_s_filtered_old[0])*PERIODIC_FREQUENCY;
@@ -1407,12 +1441,9 @@ void overactuated_mixing_run(void)
 
                     #endif
 
-
                 #endif
 
             #endif             
-
-
 
             //Elevator servos:
             overactuated_mixing.commands[4] = (int32_t)(
@@ -1475,26 +1506,8 @@ void overactuated_mixing_run(void)
 
     }
 
-
     //Send to the raspberry pi the values for the next optimization run.
     AbiSendMsgAM7_DATA_OUT(ABI_AM7_DATA_OUT_ID, &am7_data_out_local, extra_data_out_local);
-
-    //Bound values:
-    Bound(overactuated_mixing.commands[0], 0, MAX_PPRZ);
-    Bound(overactuated_mixing.commands[1], 0, MAX_PPRZ);
-    Bound(overactuated_mixing.commands[2], 0, MAX_PPRZ);
-    Bound(overactuated_mixing.commands[3], 0, MAX_PPRZ);
-
-    BoundAbs(overactuated_mixing.commands[4], MAX_PPRZ);
-    BoundAbs(overactuated_mixing.commands[5], MAX_PPRZ);
-    BoundAbs(overactuated_mixing.commands[6], MAX_PPRZ);
-    BoundAbs(overactuated_mixing.commands[7], MAX_PPRZ);
-
-    BoundAbs(overactuated_mixing.commands[8], MAX_PPRZ);
-    BoundAbs(overactuated_mixing.commands[9], MAX_PPRZ);
-    BoundAbs(overactuated_mixing.commands[10], MAX_PPRZ);
-    BoundAbs(overactuated_mixing.commands[11], MAX_PPRZ);
-
 
     #ifdef FBW_ACTUATORS
         //Pre compute the actuator values to be sent to the FBW T4: 
@@ -1502,12 +1515,17 @@ void overactuated_mixing_run(void)
         if(RadioControlValues(RADIO_TH_HOLD) > 0) {
             //Arm motor:
             myserial_act_t4_out_local.motor_arm_int = 1;
+            //Bound motor values before submitting:
+            Bound(overactuated_mixing.commands[0], 0, MAX_PPRZ);
+            Bound(overactuated_mixing.commands[1], 0, MAX_PPRZ);
+            Bound(overactuated_mixing.commands[2], 0, MAX_PPRZ);
+            Bound(overactuated_mixing.commands[3], 0, MAX_PPRZ);
             //Motors cmds:
             myserial_act_t4_out_local.motor_1_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[0] * MAX_DSHOT_VALUE / 9600.0); 
             myserial_act_t4_out_local.motor_2_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[1] * MAX_DSHOT_VALUE / 9600.0); 
             myserial_act_t4_out_local.motor_3_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[2] * MAX_DSHOT_VALUE / 9600.0); 
             myserial_act_t4_out_local.motor_4_dshot_cmd_int =  (int16_t) (overactuated_mixing.commands[3] * MAX_DSHOT_VALUE / 9600.0); 
-            //Aileron servos cmd: 
+            //Aileron servos PWM cmd: 
             myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (indi_u[14] * 100.0 * 180.0/M_PI );
             myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (indi_u[14] * 100.0 * 180.0/M_PI );     
         }
@@ -1524,6 +1542,17 @@ void overactuated_mixing_run(void)
             myserial_act_t4_out_local.servo_10_cmd_int = (int16_t) (10 * 100); //10 degrees down ;  
         }
 
+        // Bound actuator values for the FBW system before submitting:
+        Bound(overactuated_mixing.commands[4],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_1_ZERO_VALUE)*K_ppz_angle_el);
+        Bound(overactuated_mixing.commands[5],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_2_ZERO_VALUE)*K_ppz_angle_el);
+        Bound(overactuated_mixing.commands[6],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_3_ZERO_VALUE)*K_ppz_angle_el);
+        Bound(overactuated_mixing.commands[7],(OVERACTUATED_MIXING_SERVO_EL_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE)*K_ppz_angle_el,(OVERACTUATED_MIXING_SERVO_EL_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_EL_4_ZERO_VALUE)*K_ppz_angle_el);
+
+        Bound(overactuated_mixing.commands[8],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_1_ZERO_VALUE)*K_ppz_angle_az);
+        Bound(overactuated_mixing.commands[9],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_2_ZERO_VALUE)*K_ppz_angle_az);
+        Bound(overactuated_mixing.commands[10],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_3_ZERO_VALUE)*K_ppz_angle_az);
+        Bound(overactuated_mixing.commands[11],(OVERACTUATED_MIXING_SERVO_AZ_MIN_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE)*K_ppz_angle_az,(OVERACTUATED_MIXING_SERVO_AZ_MAX_ANGLE - OVERACTUATED_MIXING_SERVO_AZ_4_ZERO_VALUE)*K_ppz_angle_az);
+        
         //Elevator servos cmd: 
         myserial_act_t4_out_local.servo_2_cmd_int = (int16_t) ( ( overactuated_mixing.commands[4] / K_ppz_angle_el ) * 100 * FBW_T4_K_RATIO_GEAR_EL * 180/M_PI );
         myserial_act_t4_out_local.servo_6_cmd_int = (int16_t) ( ( overactuated_mixing.commands[5] / K_ppz_angle_el ) * 100 * FBW_T4_K_RATIO_GEAR_EL * 180/M_PI );
@@ -1534,7 +1563,6 @@ void overactuated_mixing_run(void)
         myserial_act_t4_out_local.servo_5_cmd_int = (int16_t) ( ( overactuated_mixing.commands[9] / K_ppz_angle_az ) * 100 * FBW_T4_K_RATIO_GEAR_AZ * 180/M_PI );
         myserial_act_t4_out_local.servo_7_cmd_int = (int16_t) ( ( -overactuated_mixing.commands[10] / K_ppz_angle_az ) * 100 * FBW_T4_K_RATIO_GEAR_AZ * 180/M_PI );
         myserial_act_t4_out_local.servo_3_cmd_int = (int16_t) ( ( -overactuated_mixing.commands[11] / K_ppz_angle_az ) * 100 * FBW_T4_K_RATIO_GEAR_AZ * 180/M_PI );
-
 
         #ifdef TEST_PWM_SERVOS
             myserial_act_t4_out_local.servo_9_cmd_int = (int16_t) (desired_angle_servo_9 * 100);
@@ -1567,6 +1595,24 @@ void overactuated_mixing_run(void)
 
     #endif
 
+    //Bound values if we are not in FBW mode:
+    #ifndef FBW_ACTUATORS
+        Bound(overactuated_mixing.commands[0], 0, MAX_PPRZ);
+        Bound(overactuated_mixing.commands[1], 0, MAX_PPRZ);
+        Bound(overactuated_mixing.commands[2], 0, MAX_PPRZ);
+        Bound(overactuated_mixing.commands[3], 0, MAX_PPRZ);
+
+        BoundAbs(overactuated_mixing.commands[4], MAX_PPRZ);
+        BoundAbs(overactuated_mixing.commands[5], MAX_PPRZ);
+        BoundAbs(overactuated_mixing.commands[6], MAX_PPRZ);
+        BoundAbs(overactuated_mixing.commands[7], MAX_PPRZ);
+
+        BoundAbs(overactuated_mixing.commands[8], MAX_PPRZ);
+        BoundAbs(overactuated_mixing.commands[9], MAX_PPRZ);
+        BoundAbs(overactuated_mixing.commands[10], MAX_PPRZ);
+        BoundAbs(overactuated_mixing.commands[11], MAX_PPRZ);
+    #endif
+
     actuator_output[0] = (int32_t) (overactuated_mixing.commands[0] / K_ppz_rads_motor);
     actuator_output[1] = (int32_t) (overactuated_mixing.commands[1] / K_ppz_rads_motor);
     actuator_output[2] = (int32_t) (overactuated_mixing.commands[2] / K_ppz_rads_motor);
@@ -1588,18 +1634,18 @@ void overactuated_mixing_run(void)
     actuator_state_int[2] = (int32_t) (actuator_state[2]);
     actuator_state_int[3] = (int32_t) (actuator_state[3]);
 
-    actuator_state_int[4] = (int32_t) (actuator_state[4] * 18000/M_PI);
-    actuator_state_int[5] = (int32_t) (actuator_state[5] * 18000/M_PI);
-    actuator_state_int[6] = (int32_t) (actuator_state[6] * 18000/M_PI);
-    actuator_state_int[7] = (int32_t) (actuator_state[7] * 18000/M_PI);
+    actuator_state_int[4] = (int32_t) (actuator_state[4] * 18000.0/M_PI);
+    actuator_state_int[5] = (int32_t) (actuator_state[5] * 18000.0/M_PI);
+    actuator_state_int[6] = (int32_t) (actuator_state[6] * 18000.0/M_PI);
+    actuator_state_int[7] = (int32_t) (actuator_state[7] * 18000.0/M_PI);
 
-    actuator_state_int[8] = (int32_t) (actuator_state[8] * 18000/M_PI);
-    actuator_state_int[9] = (int32_t) (actuator_state[9] * 18000/M_PI);
-    actuator_state_int[10] = (int32_t) (actuator_state[10] * 18000/M_PI);
-    actuator_state_int[11] = (int32_t) (actuator_state[11] * 18000/M_PI);
+    actuator_state_int[8] = (int32_t) (actuator_state[8] * 18000.0/M_PI);
+    actuator_state_int[9] = (int32_t) (actuator_state[9] * 18000.0/M_PI);
+    actuator_state_int[10] = (int32_t) (actuator_state[10] * 18000.0/M_PI);
+    actuator_state_int[11] = (int32_t) (actuator_state[11] * 18000.0/M_PI);
 
     //Ailerons
-    actuator_state_int[12] = (int32_t) (actuator_state[14] * 18000/M_PI);
+    actuator_state_int[12] = (int32_t) (actuator_state[14] * 18000.0/M_PI);
 
 }
 

@@ -133,6 +133,8 @@ extern float K_p_rad_s_dshot, K_i_rad_s_dshot, K_d_rad_s_dshot;
 extern int min_pwm_servo_9, max_pwm_servo_9, neutral_pwm_servo_9, min_pwm_servo_10, max_pwm_servo_10, neutral_pwm_servo_10; 
 extern float desired_angle_servo_9, desired_angle_servo_10;
 
+extern float des_az_angle_test, des_el_angle_test;
+
 /* External used functions */
 extern void overactuated_mixing_init(void);
 extern void overactuated_mixing_run(void);
