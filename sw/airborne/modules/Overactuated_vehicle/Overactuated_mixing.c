@@ -450,14 +450,14 @@ struct BodyCoord_f compute_propeller_thrust_in_body_frame(float propeller_speed,
                     PROP_MODEL_P10_QT*propeller_speed + 
                     PROP_MODEL_P20_QT*propeller_speed*propeller_speed + 
                     PROP_MODEL_P30_QT*propeller_speed*propeller_speed*propeller_speed + 
-                    PROP_MODEL_P40_QT*propeller_speed*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS;
+                    PROP_MODEL_P40_QT*propeller_speed*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS_REAL;
     float p_qt_1 = (PROP_MODEL_P01_QT +
                     PROP_MODEL_P11_QT*propeller_speed +
                     PROP_MODEL_P21_QT*propeller_speed*propeller_speed + 
-                    PROP_MODEL_P31_QT*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS;
+                    PROP_MODEL_P31_QT*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS_REAL;
     float p_qt_2 = (PROP_MODEL_P02_QT + 
                     PROP_MODEL_P12_QT*propeller_speed + 
-                    PROP_MODEL_P22_QT*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS;
+                    PROP_MODEL_P22_QT*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS_REAL;
 
     float thr_value = omega_prop_rad_s * omega_prop_rad_s * (p_kt_0 + p_kt_1 * b_angle_rotor + p_kt_2 * b_angle_rotor * b_angle_rotor) +
                       (p_qt_0 + p_qt_1 * b_angle_rotor + p_qt_2 * b_angle_rotor * b_angle_rotor);       
@@ -1247,6 +1247,7 @@ void overactuated_mixing_run(void)
         // If we are in the waypoint control mode, overwrite the speed setpoints with the one distated by the waypoint: 
         if(waypoint_mode){
             float dest_pos_ground_rf[3]; 
+            //TODO: need to add the source for the waypoint.
             dest_pos_ground_rf[0] = 0; 
             dest_pos_ground_rf[1] = 0; 
             dest_pos_ground_rf[2] = 0; 
@@ -1330,8 +1331,8 @@ void overactuated_mixing_run(void)
 
         am7_data_out_local.desired_ailerons_value_int = (int16_t) (manual_ailerons_value * 1e2 * 180/M_PI);
 
-        extra_data_out_local[0] = Dynamic_MOTOR_K_T_OMEGASQ;
-        extra_data_out_local[1] = OVERACTUATED_MIXING_MOTOR_K_M_OMEGASQ;
+        extra_data_out_local[0] = PROP_MODEL_KT_REF;
+        extra_data_out_local[1] = PROP_MODEL_KM_REF;
         extra_data_out_local[2] = VEHICLE_MASS;
         extra_data_out_local[3] = VEHICLE_I_XX;
         extra_data_out_local[4] = VEHICLE_I_YY;
@@ -1400,6 +1401,10 @@ void overactuated_mixing_run(void)
         extra_data_out_local[53] = (OVERACTUATED_MIXING_MIN_DELTA_AILERONS * 180/M_PI);
         extra_data_out_local[54] = (OVERACTUATED_MIXING_MAX_DELTA_AILERONS * 180/M_PI);
         extra_data_out_local[55] = CL_ailerons ;
+
+        //Inflow angle aerodynamic model: 
+        extra_data_out_local[56] = PROP_MODEL_MAX_THR_LOSS_OPTIMIZER;
+        extra_data_out_local[57] = PROP_MODEL_C_DR;
 
         indi_u[0] =  (myam7_data_in_local.motor_1_cmd_int * 1e-1);
         indi_u[1] =  (myam7_data_in_local.motor_2_cmd_int * 1e-1);

@@ -576,10 +576,10 @@
     <define name="LZ" value="0." unit="m"/>
 
     <define name="CL_ALPHA" value="3.5"/>
-    <define name="CM_ZERO" value="0.05"/>
-    <define name="CM_ALPHA" value="-0.1"/>
-    <define name="CD_ZERO" value="0.38"/>
-    <define name="K_CD" value="0.2"/>
+    <define name="CM_ZERO" value="0"/>
+    <define name="CM_ALPHA" value="-0.05"/>
+    <define name="CD_ZERO" value="0.15"/>
+    <define name="K_CD" value="0.12"/>
     <define name="CY_BETA" value="0"/>
     <define name="CL_BETA" value="0"/>
     <define name="S" value="0.43"/>
@@ -596,7 +596,12 @@
     <define name="KM_REF" value="1.835091e-7" unit="N*m/(rad/s)^2"/>
     <define name="KT_REF" value="1.106465e-5" unit="N/(rad/s)^2"/>
 
-    <define name="MAX_THR_LOSS" value="3" unit="N"/>
+    <define name="MAX_THR_LOSS_REAL" value="4" unit="N"/>
+
+    <define name="MAX_THR_LOSS_OPTIMIZER" value="0" unit="N"/>
+
+    <!-- drag coefficient of the rotor -->
+    <define name="C_DR" value="0.005"/>
 
     <define name="P00_KT" value="1"/>
     <define name="P10_KT" value="-0.007944"/>
@@ -644,7 +649,7 @@
     <define name="VZ_AIRSPEED_GAIN_COEFF" value="-0.02"/>
     <define name="VZ_GAIN_MAX_VAL" value="1"/>
     <define name="VZ_GAIN_MIN_VAL" value="0.6"/>
-    
+
   </section>
 
   <!-- ************************* MAG EXTERNAL ************************* -->
