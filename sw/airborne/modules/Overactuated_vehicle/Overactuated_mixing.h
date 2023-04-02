@@ -51,6 +51,12 @@ struct FloatEulersPosition {
     float z;
 };
 
+struct BodyCoord_f {
+    float x;
+    float y;
+    float z;
+};
+
 struct ActuatorsStruct {
     float motor;
     float elevation;

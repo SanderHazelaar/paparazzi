@@ -507,27 +507,27 @@
     <define name="W_ACT_EL_CONST" value="0"/>
     <define name="W_ACT_EL_SPEED" value="0"/>
     <define name="W_ACT_AZ_CONST" value="0"/>
-    <define name="W_ACT_AZ_SPEED" value="1.5"/>
+    <define name="W_ACT_AZ_SPEED" value="2"/>
     <define name="W_ACT_THETA_CONST" value="100"/>
-    <define name="W_ACT_THETA_SPEED" value="-15"/>
+    <define name="W_ACT_THETA_SPEED" value="-12"/>
     <define name="W_ACT_PHI_CONST" value="100"/>
-    <define name="W_ACT_PHI_SPEED" value="-15"/>
+    <define name="W_ACT_PHI_SPEED" value="-13"/>
 
     <define name="W_ACT_AILERONS_CONST" value="0.5"/>
     <define name="W_ACT_AILERONS_SPEED" value="0"/>
 
-    <define name="W_DV_1" value="0.0067"/>
-    <define name="W_DV_2" value="0.0067"/>
-    <define name="W_DV_3" value="0.01"/>
-    <define name="W_DV_4" value="0.02"/>
-    <define name="W_DV_5" value="0.02"/>
-    <define name="W_DV_6" value="0.02"/>
+    <define name="W_DV_1" value="0.1"/>
+    <define name="W_DV_2" value="0.1"/>
+    <define name="W_DV_3" value="0.2"/>
+    <define name="W_DV_4" value="0.3"/>
+    <define name="W_DV_5" value="0.3"/>
+    <define name="W_DV_6" value="0.3"/>
 
-    <define name="GAMMA_QUADRATIC_DU" value="0.7e-5"/>
+    <define name="GAMMA_QUADRATIC_DU" value="0.6e-5"/>
 
     <!-- FWD flight properties for yaw rate induced by controller and for removal of lateral speed term-->
-    <define name="MIN_SPEED_TRANSITION" value="4.0" unit="m/s"/>
-    <define name="REF_SPEED_TRANSITION" value="6.0" unit="m/s"/>
+    <define name="MIN_SPEED_TRANSITION" value="3.0" unit="m/s"/>
+    <define name="REF_SPEED_TRANSITION" value="5.0" unit="m/s"/>
 
   </section>
 
@@ -589,6 +589,63 @@
     <define name="CL_AILERONS" value="0.1"/>
   </section>
 
+  <!-- Motor-propulsive characteristics with inflow and airspeed dependency -->
+  <section name="PROP_MODEL" prefix="PROP_MODEL_">
+    
+    <!-- 10x5.5 CF TMOTOR -->
+    <define name="KM_REF" value="1.835091e-7" unit="N*m/(rad/s)^2"/>
+    <define name="KT_REF" value="1.106465e-5" unit="N/(rad/s)^2"/>
+
+    <define name="MAX_THR_LOSS" value="3" unit="N"/>
+
+    <define name="P00_KT" value="1"/>
+    <define name="P10_KT" value="-0.007944"/>
+    <define name="P01_KT" value="-0.01699"/>
+    <define name="P20_KT" value="0.000856"/>
+    <define name="P11_KT" value="-0.01791"/>
+    <define name="P02_KT" value="-0.01149"/>
+    <define name="P30_KT" value="0.0001001"/>
+    <define name="P21_KT" value="0.00368"/>
+    <define name="P12_KT" value="0.0001334"/>
+    <define name="P40_KT" value="-5.416e-06"/>
+    <define name="P31_KT" value="-8.903e-05"/>
+    <define name="P22_KT" value="0.0003558"/>
+
+    <define name="P00_QT" value="-0.00568"/>
+    <define name="P10_QT" value="-0.008563"/>
+    <define name="P01_QT" value="0.004781"/>
+    <define name="P20_QT" value="0.005407"/>
+    <define name="P11_QT" value="0.03948"/>
+    <define name="P02_QT" value="0.007349"/>
+    <define name="P30_QT" value="-0.0005864"/>
+    <define name="P21_QT" value="-0.0001271"/>
+    <define name="P12_QT" value="0.007095"/>
+    <define name="P40_QT" value="1.787e-05"/>
+    <define name="P31_QT" value="6.422e-05"/>
+    <define name="P22_QT" value="0.0004564"/>
+
+  </section>
+
+  <section name="WP_CONTROL" prefix="WP_CONTROL_">
+
+    <define name="MAX_POS_XY_ERROR" value="7.5" unit="meters"/>
+    <define name="MAX_POS_Z_ERROR" value="5" unit="meters"/>
+
+    <define name="VX_CONTROL_STATIC_GAIN" value="0.5" unit="(m/s)/m"/>
+    <define name="VY_CONTROL_STATIC_GAIN" value="0.5" unit="(m/s)/m"/>
+    <define name="VZ_CONTROL_STATIC_GAIN" value="1" unit="(m/s)/m"/>
+
+    <define name="MAX_DECEL_WP_APPROACH" value="2" unit="m/s^2"/>
+
+    <define name="VY_AIRSPEED_GAIN_COEFF" value="-0.1"/>
+    <define name="VY_GAIN_MAX_VAL" value="1"/>
+    <define name="VY_GAIN_MIN_VAL" value="0.17"/>
+
+    <define name="VZ_AIRSPEED_GAIN_COEFF" value="-0.02"/>
+    <define name="VZ_GAIN_MAX_VAL" value="1"/>
+    <define name="VZ_GAIN_MIN_VAL" value="0.6"/>
+    
+  </section>
 
   <!-- ************************* MAG EXTERNAL ************************* -->
   <section name="MAG_RM3100" prefix="RM3100_">

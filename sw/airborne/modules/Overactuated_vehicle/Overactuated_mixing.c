@@ -62,7 +62,7 @@
 // float time_old = 0; 
 // float test_frequency = 0.5;
 
-struct ESC_status myESC_status;
+// struct ESC_status myESC_status;
 
 //Array which contains all the actuator values (sent to motor and servos)
 struct overactuated_mixing_t overactuated_mixing;
@@ -122,7 +122,7 @@ float desired_angle_servo_9 = 0;
 float desired_angle_servo_10 = 0;
 
 //Sideslip gains
-float K_beta = 0.15;
+float K_beta = 0.1;
 
 float Dynamic_MOTOR_K_T_OMEGASQ;
 
@@ -177,6 +177,7 @@ int32_t actuator_output[INDI_NUM_ACT], actuator_state_int[INDI_NUM_ACT];
 float indi_u[INDI_NUM_ACT], indi_u_scaled[INDI_NUM_ACT];
 
 //Variables for the actuator model v2:
+#ifndef FBW_ACTUATORS
 #define actuator_mem_buf_size 100
 float indi_u_memory[INDI_NUM_ACT][actuator_mem_buf_size];
 float actuator_state_old[INDI_NUM_ACT];
@@ -187,9 +188,8 @@ int delay_ts_el = (int) (OVERACTUATED_MIXING_INDI_EL_SECOND_ORD_DELAY * PERIODIC
 int delay_ts_ailerons = (int) (OVERACTUATED_MIXING_INDI_AILERONS_FIRST_ORD_DELAY * PERIODIC_FREQUENCY);
 float max_rate_az = OVERACTUATED_MIXING_INDI_AZ_SECOND_ORD_RATE_LIMIT / PERIODIC_FREQUENCY;
 float max_rate_el = OVERACTUATED_MIXING_INDI_EL_SECOND_ORD_RATE_LIMIT / PERIODIC_FREQUENCY;
+#endif
 
-//Matrix for the coordinate transformation from euler angle derivative to rates:
-float R_matrix[3][3];
 
 //Setpoints and pseudocontrol
 float pos_setpoint[3];
@@ -226,12 +226,18 @@ Butterworth2LowPass actuator_state_filters[INDI_NUM_ACT];   //Filter of actuator
 //Filter of lateral acceleration for turn correction
 Butterworth2LowPass accely_filt;
 
+//Filter for the airspeed: 
+Butterworth2LowPass airspeed_filt;
+
 //Filters for flight path angle : 
 Butterworth2LowPass flight_path_angle_filtered;
 
 //Variables for the auto test: 
 float auto_test_time_start, des_Vx, des_Vy, des_Vz, des_phi, des_theta, des_psi_dot;
-uint8_t auto_test_start; 
+uint8_t auto_test_start = 0; 
+
+//Variables for the waypoint contol: 
+int waypoint_mode = 0; 
 
 // Variables for the speed to derivative gain slider and thrust coefficient: 
 float K_d_speed = 0.03; 
@@ -332,6 +338,225 @@ static void send_overactuated_variables( struct transport_tx *trans , struct lin
 }
 
 /**
+ * Function that computes a value linearly passing from 0 to 1. 
+ * if current_speed < start_speed the output is 0
+ * if start_speed < current_speed < end_speed the output is linearly increasing from 0 to 1
+ * if current_speed > end_speed the output is 1
+ */
+float compute_lat_speed_multiplier(float start_speed, float end_speed, float current_speed){
+
+    float lat_speed_multiplier = (current_speed - start_speed) / (end_speed - start_speed);
+    Bound(lat_speed_multiplier , 0, 1);
+    return lat_speed_multiplier;
+}
+
+/**
+ * Transpose an array from propeller reference frame to body reference frame
+ */
+void from_propeller_to_body(float * out_array, float * in_array, float b, float g){
+    float R_pb_matrix[3][3];
+    R_pb_matrix[0][0] = cos(b);
+    R_pb_matrix[0][1] = 0;
+    R_pb_matrix[0][2] = sin(b);
+    R_pb_matrix[1][0] = sin(g)*sin(b) ;
+    R_pb_matrix[1][1] = cos(g) ;
+    R_pb_matrix[1][2] = -sin(g)*cos(b) ;
+    R_pb_matrix[2][0] = -cos(g)*sin(b) ;
+    R_pb_matrix[2][1] = sin(g) ;
+    R_pb_matrix[2][2] = cos(g)*cos(b);
+
+    //Do the multiplication between the income array and the matrix:
+    for (int j = 0; j < 3; j++) {
+        //Initialize value to zero:
+        out_array[j] = 0.;
+        for (int k = 0; k < 3; k++) {
+            out_array[j] += in_array[k] * R_pb_matrix[j][k];
+        }
+    }
+}
+
+/**
+ * Transpose the euler rates array into body rates array
+ */
+void from_euler_rates_to_body_rates(float * out_array, float * in_array, float Theta, float Phi){
+    float R_matrix[3][3];
+    R_matrix[0][0] = 1;
+    R_matrix[0][1] = 0;
+    R_matrix[0][2] = -sin(Theta);
+    R_matrix[1][0] = 0 ;
+    R_matrix[1][1] = cos(Phi) ;
+    R_matrix[1][2] = sin(Phi)*cos(Theta);
+    R_matrix[2][0] = 0 ;
+    R_matrix[2][1] = -sin(Phi) ;
+    R_matrix[2][2] = cos(Phi)*cos(Theta);
+
+    //Do the multiplication between the income array and the matrix:
+    for (int j = 0; j < 3; j++) {
+        //Initialize value to zero:
+        out_array[j] = 0.;
+        for (int k = 0; k < 3; k++) {
+            out_array[j] += in_array[k] * R_matrix[j][k];
+        }
+    }
+}
+
+/**
+ * Transpose an array from earth reference frame to control reference frame
+ */
+void from_earth_to_control(float * out_array, float * in_array, float Psi){
+    float R_gc_matrix[3][3];
+    R_gc_matrix[0][0] = cos(Psi);
+    R_gc_matrix[0][1] = -sin(Psi);
+    R_gc_matrix[0][2] = 0;
+    R_gc_matrix[1][0] = sin(Psi) ;
+    R_gc_matrix[1][1] = cos(Psi) ;
+    R_gc_matrix[1][2] = 0 ;
+    R_gc_matrix[2][0] = 0 ;
+    R_gc_matrix[2][1] = 0 ;
+    R_gc_matrix[2][2] = 1 ;
+
+    //Do the multiplication between the income array and the transposition matrix:
+    for (int j = 0; j < 3; j++) {
+        //Initialize value to zero:
+        out_array[j] = 0.;
+        for (int k = 0; k < 3; k++) {
+            out_array[j] += in_array[k] * R_gc_matrix[k][j];
+        }
+    }
+}
+
+
+/**
+ * Function which computes the thrust in the body reference frame using the inflow angle 
+ * characteristics determined in the wind tunnel:
+ */
+struct BodyCoord_f compute_propeller_thrust_in_body_frame(float propeller_speed, float b_angle_rotor, float g_angle_rotor, float omega_prop_rad_s){
+    struct BodyCoord_f myBodyCoord_f;
+
+    float p_kt_0 = (PROP_MODEL_P00_KT + 
+                    PROP_MODEL_P10_KT*propeller_speed + 
+                    PROP_MODEL_P20_KT*propeller_speed*propeller_speed + 
+                    PROP_MODEL_P30_KT*propeller_speed*propeller_speed*propeller_speed + 
+                    PROP_MODEL_P40_KT*propeller_speed*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_KT_REF;
+    float p_kt_1 = (PROP_MODEL_P01_KT +
+                    PROP_MODEL_P11_KT*propeller_speed +
+                    PROP_MODEL_P21_KT*propeller_speed*propeller_speed + 
+                    PROP_MODEL_P31_KT*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_KT_REF;
+    float p_kt_2 = (PROP_MODEL_P02_KT + 
+                    PROP_MODEL_P12_KT*propeller_speed + 
+                    PROP_MODEL_P22_KT*propeller_speed*propeller_speed)*PROP_MODEL_KT_REF;
+
+    float p_qt_0 = (PROP_MODEL_P00_QT + 
+                    PROP_MODEL_P10_QT*propeller_speed + 
+                    PROP_MODEL_P20_QT*propeller_speed*propeller_speed + 
+                    PROP_MODEL_P30_QT*propeller_speed*propeller_speed*propeller_speed + 
+                    PROP_MODEL_P40_QT*propeller_speed*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS;
+    float p_qt_1 = (PROP_MODEL_P01_QT +
+                    PROP_MODEL_P11_QT*propeller_speed +
+                    PROP_MODEL_P21_QT*propeller_speed*propeller_speed + 
+                    PROP_MODEL_P31_QT*propeller_speed*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS;
+    float p_qt_2 = (PROP_MODEL_P02_QT + 
+                    PROP_MODEL_P12_QT*propeller_speed + 
+                    PROP_MODEL_P22_QT*propeller_speed*propeller_speed)*PROP_MODEL_MAX_THR_LOSS;
+
+    float thr_value = omega_prop_rad_s * omega_prop_rad_s * (p_kt_0 + p_kt_1 * b_angle_rotor + p_kt_2 * b_angle_rotor * b_angle_rotor) +
+                      (p_qt_0 + p_qt_1 * b_angle_rotor + p_qt_2 * b_angle_rotor * b_angle_rotor);       
+
+    float thr_array_prop_rf[3] = {0 , 0, thr_value};
+    float thr_array_body_rf[3]; 
+
+    from_propeller_to_body(thr_array_body_rf, thr_array_prop_rf, b_angle_rotor, g_angle_rotor);
+
+    //Transpose the thrust value from propeller RF to body RF: 
+    myBodyCoord_f.x = thr_array_body_rf[0];
+    myBodyCoord_f.y = thr_array_body_rf[1];
+    myBodyCoord_f.z = thr_array_body_rf[2];
+    return myBodyCoord_f;
+}
+
+/**
+ * Function that computes the yaw rate for the coordinate turn:
+ */
+float compute_yaw_rate_turn(void){
+            //Compute the yaw rate for the coordinate turn:
+        float yaw_rate_setpoint_turn = 0;
+
+        float airspeed_turn = airspeed;
+        //We are dividing by the airspeed, so a lower bound is important
+        Bound(airspeed_turn,10.0,30.0);
+
+        float accel_y_filt_corrected = 0;
+
+        // accel_y_filt_corrected = accely_filt.o[0] 
+        //                         - actuator_state_filt[0]*actuator_state_filt[0]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[8])/VEHICLE_MASS
+        //                         - actuator_state_filt[1]*actuator_state_filt[1]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[9])/VEHICLE_MASS
+        //                         - actuator_state_filt[2]*actuator_state_filt[2]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[10])/VEHICLE_MASS
+        //                         - actuator_state_filt[3]*actuator_state_filt[3]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[11])/VEHICLE_MASS;
+                                
+        accel_y_filt_corrected = accely_filt.o[0] 
+                                - compute_propeller_thrust_in_body_frame(airspeed_filt.o[0],actuator_state_filt[4],actuator_state_filt[8],actuator_state_filt[0]).y/VEHICLE_MASS
+                                - compute_propeller_thrust_in_body_frame(airspeed_filt.o[0],actuator_state_filt[5],actuator_state_filt[9],actuator_state_filt[1]).y/VEHICLE_MASS
+                                - compute_propeller_thrust_in_body_frame(airspeed_filt.o[0],actuator_state_filt[6],actuator_state_filt[10],actuator_state_filt[2]).y/VEHICLE_MASS
+                                - compute_propeller_thrust_in_body_frame(airspeed_filt.o[0],actuator_state_filt[7],actuator_state_filt[11],actuator_state_filt[3]).y/VEHICLE_MASS;
+
+        if(airspeed > OVERACTUATED_MIXING_MIN_SPEED_TRANSITION){
+
+            // Creating the setpoint using the bank angle and the body acceleration correction for the sideslip:
+            yaw_rate_setpoint_turn = 9.81*tan(euler_vect[0])/airspeed_turn - K_beta * accel_y_filt_corrected;
+
+            feed_fwd_term_yaw = 9.81*tan(euler_vect[0])/airspeed_turn;
+            feed_back_term_yaw = - K_beta * accel_y_filt_corrected;
+        }
+        else{
+            yaw_rate_setpoint_turn = 0;
+        }
+
+        yaw_rate_setpoint_turn = yaw_rate_setpoint_turn * compute_lat_speed_multiplier(OVERACTUATED_MIXING_MIN_SPEED_TRANSITION,OVERACTUATED_MIXING_REF_SPEED_TRANSITION,airspeed);
+
+        return yaw_rate_setpoint_turn;
+}
+
+/**
+ * Function that computes the speed reference in the control reference frame, taking as input 
+ * the current vehicle position and the desired position in the ground reference frame:
+ */
+void compute_speed_ref_from_waypoint(float * speed_reference_control_rf, float * dest_pos_ground_rf, float * current_pos_ground_rf, float airspeed_vehicle, float Psi){
+    float pos_error_earth_rf[3], pos_error_control_rf[3];
+    //Compute position error in ground reference frame 
+    for( int i=0; i<3; i++){
+        pos_error_earth_rf[i] = current_pos_ground_rf[i] - dest_pos_ground_rf[i];
+    }
+    //Transpose position error from ground rf to control rf: 
+    from_earth_to_control(pos_error_control_rf, pos_error_earth_rf, Psi);
+
+    //Before applying gains and bounds, let's compute the dynamic saturation point for the fwd speed, based on the control-x distance of the WP: 
+    float max_fwd_speed_approach_wp = sqrt( fabs(pos_error_control_rf[0]) * 2 * WP_CONTROL_MAX_DECEL_WP_APPROACH );
+
+    //Apply saturation block to the maximum position error: 
+    BoundAbs(pos_error_control_rf[0],WP_CONTROL_MAX_POS_XY_ERROR);
+    BoundAbs(pos_error_control_rf[1],WP_CONTROL_MAX_POS_XY_ERROR);
+    BoundAbs(pos_error_control_rf[2],WP_CONTROL_MAX_POS_Z_ERROR);
+
+    //Now apply static gains to the position error to generate the speed references in the control rf: 
+    speed_reference_control_rf[0] = pos_error_control_rf[0] * WP_CONTROL_VX_CONTROL_STATIC_GAIN;
+    speed_reference_control_rf[1] = pos_error_control_rf[1] * WP_CONTROL_VY_CONTROL_STATIC_GAIN;
+    speed_reference_control_rf[2] = pos_error_control_rf[2] * WP_CONTROL_VZ_CONTROL_STATIC_GAIN;
+
+    //Now compute and apply the Vy and Vz gains with the airspeed dependency: 
+    float Vy_dyn_gain = 1 + WP_CONTROL_VY_AIRSPEED_GAIN_COEFF * airspeed_vehicle;
+    float Vz_dyn_gain = 1 + WP_CONTROL_VZ_AIRSPEED_GAIN_COEFF * airspeed_vehicle;
+    Bound(Vy_dyn_gain,WP_CONTROL_VY_GAIN_MIN_VAL,WP_CONTROL_VY_GAIN_MAX_VAL);
+    Bound(Vz_dyn_gain,WP_CONTROL_VZ_GAIN_MIN_VAL,WP_CONTROL_VZ_GAIN_MAX_VAL);
+
+    speed_reference_control_rf[1] = speed_reference_control_rf[1] * Vy_dyn_gain;
+    speed_reference_control_rf[2] = speed_reference_control_rf[2] * Vz_dyn_gain;
+
+    //Apply approach constrain to fwd speed: 
+    Bound(speed_reference_control_rf[0],LIMITS_FWD_MIN_FWD_SPEED,max_fwd_speed_approach_wp);
+
+}
+
+/**
  * Function for the message ACTUATORS_OUTPUT
  */
 static void send_actuator_variables( struct transport_tx *trans , struct link_device * dev ) {
@@ -386,40 +611,18 @@ void init_filters(void){
     //Initialize filter for the lateral acceleration to correct the turn and the flight path angle: 
     init_butterworth_2_low_pass(&accely_filt, tau_indi, sample_time, 0.0);
     init_butterworth_2_low_pass(&flight_path_angle_filtered, tau_indi, sample_time, 0.0);
+    init_butterworth_2_low_pass(&airspeed_filt, tau_indi, sample_time, 0.0);
 
     //Initialize to zero the variables of get_actuator_state_v2:
-    for(int i = 0; i < INDI_NUM_ACT; i++){
-        for(int j = 0; j < actuator_mem_buf_size; j++ ){
-            indi_u_memory[i][j] = 0;
+    #ifndef FBW_ACTUATORS
+        for(int i = 0; i < INDI_NUM_ACT; i++){
+            for(int j = 0; j < actuator_mem_buf_size; j++ ){
+                indi_u_memory[i][j] = 0;
+            }
+            actuator_state_old_old[i] = 0;
+            actuator_state_old[i] = 0;
         }
-        actuator_state_old_old[i] = 0;
-        actuator_state_old[i] = 0;
-    }
-}
-
-/**
- * Transpose an array from earth reference frame to control reference frame
- */
-void from_earth_to_control(float * out_array, float * in_array, float Psi){
-    float R_gc_matrix[3][3];
-    R_gc_matrix[0][0] = cos(Psi);
-    R_gc_matrix[0][1] = -sin(Psi);
-    R_gc_matrix[0][2] = 0;
-    R_gc_matrix[1][0] = sin(Psi) ;
-    R_gc_matrix[1][1] = cos(Psi) ;
-    R_gc_matrix[1][2] = 0 ;
-    R_gc_matrix[2][0] = 0 ;
-    R_gc_matrix[2][1] = 0 ;
-    R_gc_matrix[2][2] = 1 ;
-
-    //Do the multiplication between the income array and the transposition matrix:
-    for (int j = 0; j < 3; j++) {
-        //Initialize value to zero:
-        out_array[j] = 0.;
-        for (int k = 0; k < 3; k++) {
-            out_array[j] += in_array[k] * R_gc_matrix[k][j];
-        }
-    }
+    #endif
 }
 
 /**
@@ -523,26 +726,26 @@ void get_actuator_state_v2(void)
         actuator_state_filt[i] = actuator_state_filters[i].o[0];
     }
 
-    //Collect extra packet from extra_data_in rolling message: 
-    myESC_status.ESC_1_rpm = myserial_act_t4_in_local.motor_1_rpm_int; 
-    myESC_status.ESC_2_rpm = myserial_act_t4_in_local.motor_2_rpm_int; 
-    myESC_status.ESC_3_rpm = myserial_act_t4_in_local.motor_3_rpm_int; 
-    myESC_status.ESC_4_rpm = myserial_act_t4_in_local.motor_4_rpm_int; 
+    // Collect extra packet from extra_data_in rolling message: 
+    // myESC_status.ESC_1_rpm = myserial_act_t4_in_local.motor_1_rpm_int; 
+    // myESC_status.ESC_2_rpm = myserial_act_t4_in_local.motor_2_rpm_int; 
+    // myESC_status.ESC_3_rpm = myserial_act_t4_in_local.motor_3_rpm_int; 
+    // myESC_status.ESC_4_rpm = myserial_act_t4_in_local.motor_4_rpm_int; 
     
-    myESC_status.ESC_1_voltage = serial_act_t4_extra_data_in_local[0];
-    myESC_status.ESC_2_voltage = serial_act_t4_extra_data_in_local[1];
-    myESC_status.ESC_3_voltage = serial_act_t4_extra_data_in_local[2];
-    myESC_status.ESC_4_voltage = serial_act_t4_extra_data_in_local[3];
+    // myESC_status.ESC_1_voltage = serial_act_t4_extra_data_in_local[0];
+    // myESC_status.ESC_2_voltage = serial_act_t4_extra_data_in_local[1];
+    // myESC_status.ESC_3_voltage = serial_act_t4_extra_data_in_local[2];
+    // myESC_status.ESC_4_voltage = serial_act_t4_extra_data_in_local[3];
 
-    myESC_status.ESC_1_current = serial_act_t4_extra_data_in_local[4];
-    myESC_status.ESC_2_current = serial_act_t4_extra_data_in_local[5];
-    myESC_status.ESC_3_current = serial_act_t4_extra_data_in_local[6];
-    myESC_status.ESC_4_current = serial_act_t4_extra_data_in_local[7];
+    // myESC_status.ESC_1_current = serial_act_t4_extra_data_in_local[4];
+    // myESC_status.ESC_2_current = serial_act_t4_extra_data_in_local[5];
+    // myESC_status.ESC_3_current = serial_act_t4_extra_data_in_local[6];
+    // myESC_status.ESC_4_current = serial_act_t4_extra_data_in_local[7];
 
-    myESC_status.ESC_1_consumption = serial_act_t4_extra_data_in_local[8];
-    myESC_status.ESC_2_consumption = serial_act_t4_extra_data_in_local[9];
-    myESC_status.ESC_3_consumption = serial_act_t4_extra_data_in_local[10];
-    myESC_status.ESC_4_consumption = serial_act_t4_extra_data_in_local[11];
+    // myESC_status.ESC_1_consumption = serial_act_t4_extra_data_in_local[8];
+    // myESC_status.ESC_2_consumption = serial_act_t4_extra_data_in_local[9];
+    // myESC_status.ESC_3_consumption = serial_act_t4_extra_data_in_local[10];
+    // myESC_status.ESC_4_consumption = serial_act_t4_extra_data_in_local[11];
 
     #endif
 
@@ -630,10 +833,8 @@ void assign_variables(void){
     //Flight path angle 
     update_butterworth_2_low_pass(&flight_path_angle_filtered, flight_path_angle);
 
-    //Computation of the matrix to pass from euler to body rates
-    R_matrix[0][0] = 1;                     R_matrix[0][1] = 0;                                       R_matrix[0][2] = 0;
-    R_matrix[1][0] = 0;                     R_matrix[1][1] = cos(euler_vect[0]);                      R_matrix[1][2] = -sin(euler_vect[0]);
-    R_matrix[2][0] = -sin(euler_vect[1]);   R_matrix[2][1] = sin(euler_vect[0])*cos(euler_vect[1]);   R_matrix[2][2] = cos(euler_vect[0]) * cos(euler_vect[1]);
+    //Airspeed 
+    update_butterworth_2_low_pass(&airspeed_filt, airspeed);
 
     //Determination of the accelerations in the control rf:
     from_earth_to_control( accel_vect_control_rf, acc_vect, euler_vect[2]);
@@ -723,7 +924,7 @@ void overactuated_mixing_run(void)
 
     /// Case of manual PID control [FAILSAFE]
     // if(0){
-    if(radio_control.values[RADIO_MODE] < 500) {
+    if(radio_control.values[RADIO_MODE] < -500) {
 
 
         //INIT AND BOOLEAN RESET
@@ -827,8 +1028,16 @@ void overactuated_mixing_run(void)
 
     /// Case of INDI control mode with external nonlinear function:
     //    if(1)
-    if(radio_control.values[RADIO_MODE] >= 500 )
+    if(radio_control.values[RADIO_MODE] >= -500 )
     {
+        //Manual Speed reference mode
+        if(radio_control.values[RADIO_MODE] < 500){
+            waypoint_mode = 0;
+        }
+        // Waypoint reference mode
+        else if(radio_control.values[RADIO_MODE] >= 500){
+            waypoint_mode = 1;
+        }
 
         //INIT AND BOOLEAN RESET
         if(INDI_engaged == 0 ){
@@ -958,55 +1167,7 @@ void overactuated_mixing_run(void)
             yaw_rate_setpoint_manual = des_psi_dot * M_PI/180; 
         }
 
-        //Compute the yaw rate for the coordinate turn:
-        float yaw_rate_setpoint_turn = 0;
-        float fwd_multiplier_yaw = 0;
-        float lat_speed_multiplier = 1;
-
-        float airspeed_turn = airspeed;
-        //We are dividing by the airspeed, so a lower bound is important
-        Bound(airspeed_turn,10.0,30.0);
-
-        float accel_y_filt_corrected = 0;
-
-        accel_y_filt_corrected = accely_filt.o[0] 
-                                - actuator_state_filt[0]*actuator_state_filt[0]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[8])/VEHICLE_MASS
-                                - actuator_state_filt[1]*actuator_state_filt[1]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[9])/VEHICLE_MASS
-                                - actuator_state_filt[2]*actuator_state_filt[2]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[10])/VEHICLE_MASS
-                                - actuator_state_filt[3]*actuator_state_filt[3]* Dynamic_MOTOR_K_T_OMEGASQ * sin(actuator_state_filt[11])/VEHICLE_MASS;
-                                
-
-        if(airspeed > OVERACTUATED_MIXING_MIN_SPEED_TRANSITION){
-
-            // Creating the setpoint using the bank angle and the body acceleration correction for the sideslip:
-            yaw_rate_setpoint_turn = 9.81*tan(euler_vect[0])/airspeed_turn - K_beta * accel_y_filt_corrected;
-
-            //Creating the setpoint using the bank angle and the sideslip vain correction for the sideslip:
-            // yaw_rate_setpoint_turn = 9.81*tan(euler_vect[0])/airspeed_turn + K_beta * beta_deg;
-
-            feed_fwd_term_yaw = 9.81*tan(euler_vect[0])/airspeed_turn;
-            feed_back_term_yaw = - K_beta * accel_y_filt_corrected;
-            // feed_back_term_yaw = + K_beta * beta_deg;
-
-        }
-        else{
-            yaw_rate_setpoint_turn = 0;
-        }
-
-        fwd_multiplier_yaw = (airspeed - OVERACTUATED_MIXING_MIN_SPEED_TRANSITION) / (OVERACTUATED_MIXING_REF_SPEED_TRANSITION - OVERACTUATED_MIXING_MIN_SPEED_TRANSITION);
-        Bound(fwd_multiplier_yaw , 0, 1);
-        lat_speed_multiplier = 1 - fwd_multiplier_yaw; // 1 until min_speed and 0 above ref_speed
-        yaw_rate_setpoint_turn = yaw_rate_setpoint_turn * fwd_multiplier_yaw;
-        euler_error[2] = yaw_rate_setpoint_manual + yaw_rate_setpoint_turn;
-
-        // //Link the euler error with the angular change in the body frame and calculate the rate setpoints
-        // for (int j = 0; j < 3; j++) {
-        //     //Cleanup previous value
-        //     angular_body_error[j] = 0.;
-        //     for (int k = 0; k < 3; k++) {
-        //         angular_body_error[j] += euler_error[k] * R_matrix[k][j];
-        //     }
-        // }
+        euler_error[2] = yaw_rate_setpoint_manual + compute_yaw_rate_turn();
 
 
         float gain_to_speed_constant = 1 - airspeed * K_d_speed; 
@@ -1083,6 +1244,16 @@ void overactuated_mixing_run(void)
             speed_setpoint_control_rf[2] = des_Vz; 
         }
 
+        // If we are in the waypoint control mode, overwrite the speed setpoints with the one distated by the waypoint: 
+        if(waypoint_mode){
+            float dest_pos_ground_rf[3]; 
+            dest_pos_ground_rf[0] = 0; 
+            dest_pos_ground_rf[1] = 0; 
+            dest_pos_ground_rf[2] = 0; 
+            compute_speed_ref_from_waypoint(speed_setpoint_control_rf, dest_pos_ground_rf, pos_vect, airspeed, euler_vect[2]);
+        }
+
+
         //Apply saturation blocks to speed setpoints in control reference frame:
         Bound(speed_setpoint_control_rf[0],LIMITS_FWD_MIN_FWD_SPEED,LIMITS_FWD_MAX_FWD_SPEED);
         BoundAbs(speed_setpoint_control_rf[1],LIMITS_FWD_MAX_LAT_SPEED);
@@ -1090,7 +1261,7 @@ void overactuated_mixing_run(void)
 
         //Compute the speed error in the control rf:
         speed_error_vect_control_rf[0] = speed_setpoint_control_rf[0] - speed_vect_control_rf[0];
-        speed_error_vect_control_rf[1] = speed_setpoint_control_rf[1] - speed_vect_control_rf[1] * lat_speed_multiplier;
+        speed_error_vect_control_rf[1] = speed_setpoint_control_rf[1] - speed_vect_control_rf[1] * (1 - compute_lat_speed_multiplier(OVERACTUATED_MIXING_MIN_SPEED_TRANSITION,OVERACTUATED_MIXING_REF_SPEED_TRANSITION,airspeed));
         speed_error_vect_control_rf[2] = speed_setpoint_control_rf[2] - speed_vect_control_rf[2];
 
         //Compute the acceleration setpoints in the control rf:
@@ -1136,7 +1307,7 @@ void overactuated_mixing_run(void)
         am7_data_out_local.q_state_int = (int16_t) (measurement_rates_filters[1].o[0] * 1e1 * 180/M_PI);
         am7_data_out_local.r_state_int = (int16_t) (measurement_rates_filters[2].o[0] * 1e1 * 180/M_PI);
 
-        am7_data_out_local.airspeed_state_int = (int16_t) (airspeed * 1e2);
+        am7_data_out_local.airspeed_state_int = (int16_t) (airspeed_filt.o[0] * 1e2);
 
         float fake_beta = 0;
 
@@ -1279,6 +1450,7 @@ void overactuated_mixing_run(void)
                 indi_u[14] = 0;
 
                 #endif
+
                 #ifdef TEST_DSHOT_CONTROL
 
                 indi_u[0] = Des_dshot_steps_motor_1*600;
@@ -1298,6 +1470,7 @@ void overactuated_mixing_run(void)
                 indi_u[14] = 0;
 
                 #endif
+
                 #ifdef TEST_PWM_SERVOS
 
                         indi_u[0] = 0;
@@ -1316,7 +1489,8 @@ void overactuated_mixing_run(void)
                         indi_u[13] = 0;
                         indi_u[14] = 0;
 
-                #endif    
+                #endif  
+
                 #ifdef TEST_DSHOT_CONTROL
                 overactuated_mixing.commands[0] = (int32_t) (indi_u[0]);
                 overactuated_mixing.commands[1] = (int32_t) (indi_u[1]);
