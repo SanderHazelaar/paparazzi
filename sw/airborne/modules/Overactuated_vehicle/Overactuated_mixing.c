@@ -42,6 +42,8 @@
 #include "modules/adcs/adc_generic.h"
 #include "modules/energy/electrical.h"
 
+#include "modules/core/sys_mon_rtos.h"
+
 /**
  * Variables declaration
  */
@@ -52,6 +54,7 @@
 
 // Decide if you want INDI RPM control or PID RPM control. Default is PID. 
 #define RPM_INDI_CONTROL
+
 
 // #define TEST_PWM_SERVOS
 // #define TEST_RPM_CONTROL
@@ -182,12 +185,12 @@ float indi_u[INDI_NUM_ACT], indi_u_scaled[INDI_NUM_ACT];
 float indi_u_memory[INDI_NUM_ACT][actuator_mem_buf_size];
 float actuator_state_old[INDI_NUM_ACT];
 float actuator_state_old_old[INDI_NUM_ACT];
-int delay_ts_motor = (int) (OVERACTUATED_MIXING_INDI_MOTOR_FIRST_ORD_DELAY * PERIODIC_FREQUENCY);
-int delay_ts_az = (int) (OVERACTUATED_MIXING_INDI_AZ_SECOND_ORD_DELAY * PERIODIC_FREQUENCY);
-int delay_ts_el = (int) (OVERACTUATED_MIXING_INDI_EL_SECOND_ORD_DELAY * PERIODIC_FREQUENCY);
-int delay_ts_ailerons = (int) (OVERACTUATED_MIXING_INDI_AILERONS_FIRST_ORD_DELAY * PERIODIC_FREQUENCY);
-float max_rate_az = OVERACTUATED_MIXING_INDI_AZ_SECOND_ORD_RATE_LIMIT / PERIODIC_FREQUENCY;
-float max_rate_el = OVERACTUATED_MIXING_INDI_EL_SECOND_ORD_RATE_LIMIT / PERIODIC_FREQUENCY;
+int delay_ts_motor = (int) (OVERACTUATED_MIXING_INDI_MOTOR_FIRST_ORD_DELAY * PERIODIC_FREQUENCY_OVERACTUATED);
+int delay_ts_az = (int) (OVERACTUATED_MIXING_INDI_AZ_SECOND_ORD_DELAY * PERIODIC_FREQUENCY_OVERACTUATED);
+int delay_ts_el = (int) (OVERACTUATED_MIXING_INDI_EL_SECOND_ORD_DELAY * PERIODIC_FREQUENCY_OVERACTUATED);
+int delay_ts_ailerons = (int) (OVERACTUATED_MIXING_INDI_AILERONS_FIRST_ORD_DELAY * PERIODIC_FREQUENCY_OVERACTUATED);
+float max_rate_az = OVERACTUATED_MIXING_INDI_AZ_SECOND_ORD_RATE_LIMIT / PERIODIC_FREQUENCY_OVERACTUATED;
+float max_rate_el = OVERACTUATED_MIXING_INDI_EL_SECOND_ORD_RATE_LIMIT / PERIODIC_FREQUENCY_OVERACTUATED;
 #endif
 
 
@@ -238,10 +241,15 @@ uint8_t auto_test_start = 0;
 
 //Variables for the waypoint contol: 
 int waypoint_mode = 0; 
+float x_stb, y_stb, z_stb;
 
 // Variables for the speed to derivative gain slider and thrust coefficient: 
 float K_d_speed = 0.03; 
 float K_T_airspeed = 0.025;
+
+//Variables for the sysmon file write: 
+float time_old_sys_mon = 0;
+int debug_enable = 0; 
 
 struct PID_over pid_gains_over = {
         .p = { OVERACTUATED_MIXING_PID_P_GAIN_PHI,
@@ -524,7 +532,7 @@ void compute_speed_ref_from_waypoint(float * speed_reference_control_rf, float *
     float pos_error_earth_rf[3], pos_error_control_rf[3];
     //Compute position error in ground reference frame 
     for( int i=0; i<3; i++){
-        pos_error_earth_rf[i] = current_pos_ground_rf[i] - dest_pos_ground_rf[i];
+        pos_error_earth_rf[i] = dest_pos_ground_rf[i] - current_pos_ground_rf[i];
     }
     //Transpose position error from ground rf to control rf: 
     from_earth_to_control(pos_error_control_rf, pos_error_earth_rf, Psi);
@@ -593,7 +601,7 @@ static void send_actuator_variables( struct transport_tx *trans , struct link_de
  * Initialize the filters
  */
 void init_filters(void){
-    float sample_time = 1.0 / PERIODIC_FREQUENCY;
+    float sample_time = 1.0 / PERIODIC_FREQUENCY_OVERACTUATED;
     //Sensors cutoff frequency
     float tau_indi = 1.0 / (OVERACTUATED_MIXING_FILT_CUTOFF_INDI);
 
@@ -623,6 +631,32 @@ void init_filters(void){
             actuator_state_old[i] = 0;
         }
     #endif
+}
+
+/**
+ * @brief Check the system performance
+ * 
+ */
+static void status_nederdrone_sysmon(void) {
+  static uint8_t cnt = 0;
+
+  if(rtos_mon.cpu_load > 85 || (debug_enable && cnt++ > 10)) {
+    sdLogWriteLog(pprzLogFile, "Data reported in the RTOS_MON message:\r\n");
+    sdLogWriteLog(pprzLogFile, " core free mem: %lu\r\n", rtos_mon.core_free_memory);
+    sdLogWriteLog(pprzLogFile, " heap free mem: %lu\r\n", rtos_mon.heap_free_memory);
+    sdLogWriteLog(pprzLogFile, " heap fragments: %lu\r\n", rtos_mon.heap_fragments);
+    sdLogWriteLog(pprzLogFile, " heap largest: %lu\r\n", rtos_mon.heap_largest);
+    sdLogWriteLog(pprzLogFile, " CPU load: %d %%\r\n", rtos_mon.cpu_load);
+    sdLogWriteLog(pprzLogFile, " number of threads: %d\r\n", rtos_mon.thread_counter);
+    sdLogWriteLog(pprzLogFile, " thread names: %s\r\n", rtos_mon.thread_names);
+    for (int i = 0; i < rtos_mon.thread_counter; i++) {
+      sdLogWriteLog(pprzLogFile, " thread %d load: %0.1f, free stack: %d\r\n", i,
+              (float)rtos_mon.thread_load[i] / 10.f, rtos_mon.thread_free_stack[i]);
+    }
+    sdLogWriteLog(pprzLogFile, " CPU time: %.2f\r\n", rtos_mon.cpu_time);
+
+    cnt = 0;
+  }
 }
 
 /**
@@ -816,7 +850,7 @@ void assign_variables(void){
 
         //Calculate the angular acceleration via finite difference
         rate_vect_filt_dot[i] = (measurement_rates_filters[i].o[0]
-                                 - measurement_rates_filters[i].o[1]) * PERIODIC_FREQUENCY;
+                                 - measurement_rates_filters[i].o[1]) * PERIODIC_FREQUENCY_OVERACTUATED;
 
         // rate_vect_filt[i] = measurement_rates_filters[i].o[0];
 
@@ -849,6 +883,17 @@ void overactuated_mixing_run(void)
 {
     //Assign variables
     assign_variables();
+
+    //Write to sysmon every 1 second if required by debug enable
+    if(get_sys_time_float() - time_old_sys_mon >= 1 && debug_enable){
+        status_nederdrone_sysmon();
+        time_old_sys_mon = get_sys_time_float();
+    }
+
+    //Retrieve the position of the STB WP: 
+    x_stb = waypoint_get_y(WP_STDBY);
+    y_stb = waypoint_get_x(WP_STDBY);
+    z_stb = -waypoint_get_alt(WP_STDBY); 
 
     //Prepare the reference for the AUTO test with the nonlinear controller: 
         
@@ -973,7 +1018,7 @@ void overactuated_mixing_run(void)
 
         //Calculate and bound the angular error integration term for the PID
         for (int i = 0; i < 3; i++) {
-            euler_error_integrated[i] += euler_error[i] / PERIODIC_FREQUENCY;
+            euler_error_integrated[i] += euler_error[i] / PERIODIC_FREQUENCY_OVERACTUATED;
             BoundAbs(euler_error_integrated[i], OVERACTUATED_MIXING_PID_MAX_EULER_ERR_INTEGRATIVE);
         }
 
@@ -1035,7 +1080,7 @@ void overactuated_mixing_run(void)
             waypoint_mode = 0;
         }
         // Waypoint reference mode
-        else if(radio_control.values[RADIO_MODE] >= 500){
+        if(radio_control.values[RADIO_MODE] >= 500){
             waypoint_mode = 1;
         }
 
@@ -1246,12 +1291,10 @@ void overactuated_mixing_run(void)
 
         // If we are in the waypoint control mode, overwrite the speed setpoints with the one distated by the waypoint: 
         if(waypoint_mode){
-            float dest_pos_ground_rf[3]; 
-            //TODO: need to add the source for the waypoint.
-            dest_pos_ground_rf[0] = 0; 
-            dest_pos_ground_rf[1] = 0; 
-            dest_pos_ground_rf[2] = 0; 
-            compute_speed_ref_from_waypoint(speed_setpoint_control_rf, dest_pos_ground_rf, pos_vect, airspeed, euler_vect[2]);
+            pos_setpoint[0] = x_stb; 
+            pos_setpoint[1] = y_stb; 
+            pos_setpoint[2] = z_stb;       
+            compute_speed_ref_from_waypoint(speed_setpoint_control_rf, pos_setpoint, pos_vect, airspeed, euler_vect[2]);
         }
 
 
@@ -1582,10 +1625,10 @@ void overactuated_mixing_run(void)
                     #ifndef RPM_INDI_CONTROL //PID RPM control
 
                     //Derivative term:
-                    motor_rad_s_dot_filtered[0] = (motor_rad_s_filtered_old[0] - motor_rad_s_filtered_old[0])*PERIODIC_FREQUENCY;
-                    motor_rad_s_dot_filtered[1] = (motor_rad_s_filtered_old[1] - motor_rad_s_filtered_old[1])*PERIODIC_FREQUENCY;
-                    motor_rad_s_dot_filtered[2] = (motor_rad_s_filtered_old[2] - motor_rad_s_filtered_old[2])*PERIODIC_FREQUENCY;
-                    motor_rad_s_dot_filtered[3] = (motor_rad_s_filtered_old[3] - motor_rad_s_filtered_old[3])*PERIODIC_FREQUENCY;
+                    motor_rad_s_dot_filtered[0] = (motor_rad_s_filtered_old[0] - motor_rad_s_filtered_old[0])*PERIODIC_FREQUENCY_OVERACTUATED;
+                    motor_rad_s_dot_filtered[1] = (motor_rad_s_filtered_old[1] - motor_rad_s_filtered_old[1])*PERIODIC_FREQUENCY_OVERACTUATED;
+                    motor_rad_s_dot_filtered[2] = (motor_rad_s_filtered_old[2] - motor_rad_s_filtered_old[2])*PERIODIC_FREQUENCY_OVERACTUATED;
+                    motor_rad_s_dot_filtered[3] = (motor_rad_s_filtered_old[3] - motor_rad_s_filtered_old[3])*PERIODIC_FREQUENCY_OVERACTUATED;
 
                     motor_rad_s_filtered_old[0] = motor_rad_s_filtered[0];
                     motor_rad_s_filtered_old[1] = motor_rad_s_filtered[1];

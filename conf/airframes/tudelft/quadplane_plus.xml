@@ -167,7 +167,7 @@
 
     <module name="air_data"/>
 
-    <!-- <module name="sys_mon"/> -->
+    <module name="sys_mon"/>
     <module name="actuators" type="pwm">
       <define name="SERVO_HZ" value="400"/>
     </module>
@@ -247,7 +247,7 @@
 
 
   <command_laws>
-    <call fun="overactuated_mixing_run()"/>
+    <!-- <call fun="overactuated_mixing_run()"/> -->
     <let var="th_hold" value="LessThan(RadioControlValues(RADIO_TH_HOLD), -4800)"/>
     <set servo="MOTOR_1" value="($th_hold? -9600 : overactuated_mixing.commands[0])"/>
     <set servo="MOTOR_2" value="($th_hold? -9600 : overactuated_mixing.commands[1])"/>
