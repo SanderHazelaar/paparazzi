@@ -80,6 +80,14 @@
     
     <module name="air_data"/>
 
+    <modules>
+      <module name="approach_moving_target"/>
+    </modules>
+
+    <block name="Approach APP">
+      <stay alt="WaypointAlt(WP_APP)" pre_call="approach_moving_target_enable(WP_APP)" wp="APP"/>
+    </block>
+
     <!-- Internal MAG -->
     <!--module name="mag_ist8310">
       <define name="MODULE_IST8310_UPDATE_AHRS" value="TRUE"/>

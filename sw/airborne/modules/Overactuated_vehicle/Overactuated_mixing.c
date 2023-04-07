@@ -507,17 +507,11 @@ float compute_yaw_rate_turn(void){
                                 - compute_propeller_thrust_in_body_frame(airspeed_filt.o[0],actuator_state_filt[6],actuator_state_filt[10],actuator_state_filt[2]).y/VEHICLE_MASS
                                 - compute_propeller_thrust_in_body_frame(airspeed_filt.o[0],actuator_state_filt[7],actuator_state_filt[11],actuator_state_filt[3]).y/VEHICLE_MASS;
 
-        if(airspeed > OVERACTUATED_MIXING_MIN_SPEED_TRANSITION){
+        // Creating the setpoint using the bank angle and the body acceleration correction for the sideslip:
+        yaw_rate_setpoint_turn = 9.81*tan(euler_vect[0])/airspeed_turn - K_beta * accel_y_filt_corrected;
 
-            // Creating the setpoint using the bank angle and the body acceleration correction for the sideslip:
-            yaw_rate_setpoint_turn = 9.81*tan(euler_vect[0])/airspeed_turn - K_beta * accel_y_filt_corrected;
-
-            feed_fwd_term_yaw = 9.81*tan(euler_vect[0])/airspeed_turn;
-            feed_back_term_yaw = - K_beta * accel_y_filt_corrected;
-        }
-        else{
-            yaw_rate_setpoint_turn = 0;
-        }
+        feed_fwd_term_yaw = 9.81*tan(euler_vect[0])/airspeed_turn;
+        feed_back_term_yaw = - K_beta * accel_y_filt_corrected;
 
         yaw_rate_setpoint_turn = yaw_rate_setpoint_turn * compute_lat_speed_multiplier(OVERACTUATED_MIXING_MIN_SPEED_TRANSITION,OVERACTUATED_MIXING_REF_SPEED_TRANSITION,airspeed);
 
@@ -827,7 +821,7 @@ void assign_variables(void){
     beta_rad = beta_deg * M_PI / 180;
 
     total_V = sqrt(speed_vect[0]*speed_vect[0] + speed_vect[1]*speed_vect[1] + speed_vect[2]*speed_vect[2]);
-    if(total_V > 7){
+    if(total_V > 5){
         flight_path_angle = asin(-speed_vect[2]/total_V);
         BoundAbs(flight_path_angle, M_PI/2);
     }
@@ -1213,7 +1207,6 @@ void overactuated_mixing_run(void)
         }
 
         euler_error[2] = yaw_rate_setpoint_manual + compute_yaw_rate_turn();
-
 
         float gain_to_speed_constant = 1 - airspeed * K_d_speed; 
         Bound(gain_to_speed_constant, 0.1, 1);

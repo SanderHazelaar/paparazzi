@@ -240,6 +240,7 @@
       <field name="dt" type="uint16_t" unit="us"/>
     </message>
 
+
     <message name="AM7_DATA_OUT" id="36">
       <field name="myam7_data_out_ptr" type="struct am7_data_out *">Pointer pointing at the myam7_data_out struct</field>
       <field name="extra_data_out_ptr" type="float *">Pointer pointing at the extra_data_out array</field>
@@ -259,6 +260,12 @@
       <field name="myserial_act_t4_in_ptr" type="struct serial_act_t4_in *">Pointer pointing at the myserial_act_t4_in struct</field>
       <field name="serial_act_t4_extra_data_in_ptr" type="float *">Pointer pointing at the serial_act_t4_extra_data_in array</field>
     </message>
+
+      <message name="VEL_SP" id="40">
+      <field name="vel_sp" type="struct FloatVect3 *" unit="m/s"></field>
+    </message>
+
+
   </msg_class>
 
 </protocol>

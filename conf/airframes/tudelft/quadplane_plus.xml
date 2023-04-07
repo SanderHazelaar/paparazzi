@@ -137,6 +137,7 @@
     <!--     For OUTSIDE -->
     <module name="gps" type="ublox">
       <configure name="GPS_BAUD" value="B460800"/> 
+      <define name="USE_GPS_UBX_RTCM" value="TRUE"/>
     </module>
 
     <!--     For OPTITRACK -->
@@ -210,6 +211,10 @@
   </module>
 
   <module name="Overactuated_mixing"/>
+
+
+  <define name="VEL_SP_FCR_ID" value="10"/>
+  <define name="AMT_ERR_SLOWDOWN_GAIN" value="0.25"/>
   </firmware>
 
   <servos>
@@ -475,7 +480,7 @@
     <define name="SERVO_EL_MIN_ANGLE" value="-130" unit="deg"/>
 
     <define name="SERVO_EL_1_ZERO_VALUE" value="-0.52" unit="deg"/>
-    <define name="SERVO_EL_2_ZERO_VALUE" value="1.05" unit="deg"/>
+    <define name="SERVO_EL_2_ZERO_VALUE" value="3.8" unit="deg"/>
     <define name="SERVO_EL_3_ZERO_VALUE" value="4.3" unit="deg"/>
     <define name="SERVO_EL_4_ZERO_VALUE" value="-4.04" unit="deg"/>
 
@@ -499,7 +504,9 @@
     <define name="FILT_CUTOFF_INDI" value="12" unit="rad/s"/>
 
     <!-- First order filter on rates -->
-    <define name="FIRST_ORDER_FILTER_COEFF_ANG_RATES" value="0.0488" /><!-- 1-exp(-cutoff_frequency/sampling_frequency) [20 rad/s]--> 
+    <!-- 1-exp(-cutoff_frequency/sampling_frequency) [20 rad/s]-->
+    <!-- <define name="FIRST_ORDER_FILTER_COEFF_ANG_RATES" value="0.0488" />  -->
+    <define name="FIRST_ORDER_FILTER_COEFF_ANG_RATES" value="0.0952" />  <!--Modified to accommodate the 250 Hz refresh rate-->
 
     <!-- Weighting matrix for the INDI -->
     <define name="W_ACT_MOTOR_CONST" value="3"/>
@@ -516,14 +523,24 @@
     <define name="W_ACT_AILERONS_CONST" value="0.5"/>
     <define name="W_ACT_AILERONS_SPEED" value="0"/>
 
-    <define name="W_DV_1" value="0.1"/>
+    <!-- TODO maybe too high???? -->
+    <!-- <define name="W_DV_1" value="0.1"/>
     <define name="W_DV_2" value="0.1"/>
     <define name="W_DV_3" value="0.2"/>
     <define name="W_DV_4" value="0.3"/>
     <define name="W_DV_5" value="0.3"/>
     <define name="W_DV_6" value="0.3"/>
 
-    <define name="GAMMA_QUADRATIC_DU" value="0.6e-5"/>
+    <define name="GAMMA_QUADRATIC_DU" value="0.6e-5"/> -->
+
+    <define name="W_DV_1" value="0.05"/>
+    <define name="W_DV_2" value="0.05"/>
+    <define name="W_DV_3" value="0.01"/>
+    <define name="W_DV_4" value="0.15"/>
+    <define name="W_DV_5" value="0.15"/>
+    <define name="W_DV_6" value="0.15"/>
+
+    <define name="GAMMA_QUADRATIC_DU" value="0.5e-5"/>
 
     <!-- FWD flight properties for yaw rate induced by controller and for removal of lateral speed term-->
     <define name="MIN_SPEED_TRANSITION" value="3.0" unit="m/s"/>

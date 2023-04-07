@@ -1225,7 +1225,15 @@
       <field name="airspeed" type="float" unit="m/s"/>
     </message>
 
-    <!-- 139 is free -->
+    <message name="APPROACH_MOVING_TARGET" id="139">
+      <field name="ref_pos_x" type="float" unit="m"/>
+      <field name="ref_pos_y" type="float" unit="m"/>
+      <field name="ref_pos_z" type="float" unit="m"/>
+      <field name="ref_vel_x" type="float" unit="m/s"/>
+      <field name="ref_vel_y" type="float" unit="m/s"/>
+      <field name="ref_vel_z" type="float" unit="m/s"/>
+      <field name="distance" type="float" unit="m"/>
+    </message>
 
     <message name="STAB_ATTITUDE_INT" id="140">
       <field name="est_p"         type="int32" alt_unit="deg/s" alt_unit_coef="0.0139882"/>
@@ -1603,7 +1611,22 @@
       <field name="mag_y" type="float" unit="mGauss">Magnetometer y-bias in mGauss</field>
       <field name="mag_z" type="float" unit="mGauss">Magnetometer z-bias in mGauss</field>
     </message>
-    <!-- 172 is free -->
+
+    <message name="TARGET_POS_INFO" id="172">
+      <description>
+        Global position, speed and ID of a target for functions like 'Follow Me'
+      </description>
+      <field name="lat" type="int32" unit="1e7deg" alt_unit="deg" alt_unit_coef="0.0000001"/>
+      <field name="lon" type="int32" unit="1e7deg" alt_unit="deg" alt_unit_coef="0.0000001"/>
+      <field name="alt" type="int32" unit="mm" alt_unit="m">Height above Mean Sea Level (geoid)</field>
+      <field name="speed" type="float" unit="m/s">Ground speed</field>
+      <field name="climb" type="float" unit="m/s">Climb speed</field>
+      <field name="course" type="float" unit="deg" format="%.1f"/>
+      <field name="heading" type="float" unit="deg" format="%.1f"/>
+      <field name="off_heading" type="float" unit="deg">Offset heading</field>
+      <field name="off_distance" type="float" unit="m">Offset distance</field>
+      <field name="off_height" type="float" unit="m">Offset height</field>
+    </message>
 
     <message name="AHRS_EULER" id="173">
       <field name="phi"   type="float" unit="rad" alt_unit="deg" alt_unit_coef="57.29578" />
@@ -2900,6 +2923,7 @@
       <field name="speed" type="float" unit="m/s">Ground speed</field>
       <field name="climb" type="float" unit="m/s">Climb speed</field>
       <field name="course" type="float" unit="deg" format="%.1f"/>
+      <field name="heading" type="float" unit="deg" format="%.1f">Ground heading</field>
     </message>
 
     <message name="SMARTPROBE" id="60" link="forwarded">

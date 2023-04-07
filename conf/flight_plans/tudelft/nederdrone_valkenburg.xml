@@ -45,10 +45,10 @@
     <module name="nav" type="survey_rectangle_rotorcraft">
       <define name="RECTANGLE_SURVEY_DEFAULT_SWEEP" value="100"/>
     </module>
+    <module name="approach_moving_target"/>
+
   </modules>
   <exceptions>
-    <exception cond="Or(!InsideFlyzone(GetPosX(), GetPosY()), GetPosAlt() @GT GetAltRef() + 1500) @AND !(nav_block == IndexOfBlock('Wait GPS')) @AND !(nav_block == IndexOfBlock('Geo init')) @AND !(nav_block == IndexOfBlock('Holding point'))" deroute="Holding point"/>
-    <exception cond="datalink_time @GT 25 @AND !(nav_block == IndexOfBlock('Wait GPS')) @AND !(nav_block == IndexOfBlock('Geo init')) @AND !(nav_block == IndexOfBlock('Holding point')) @AND !(nav_block == IndexOfBlock('Standby'))" deroute="Standby"/>
   </exceptions>
   <blocks>
     <block name="Wait GPS">
@@ -99,6 +99,9 @@
     <block name="Standby" strip_button="Standby" strip_icon="home.png">
       <set value="FALSE" var="force_forward"/>
       <stay wp="STDBY"/>
+    </block>
+<block name="Approach STBY">
+      <stay alt="WaypointAlt(WP_STDBY)" pre_call="approach_moving_target_enable(WP_STDBY)" wp="STDBY"/>
     </block>
     <block name="stay_p1">
       <set value="FALSE" var="force_forward"/>
